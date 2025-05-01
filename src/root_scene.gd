@@ -102,7 +102,7 @@ var bin_amount = bin_amount_horizontal * bin_amount_vertical
 
 
 
-const LIST_SIZE = 30;
+const LIST_SIZE = 100000;
 var IMAGE_SIZE = int(ceil((sqrt(LIST_SIZE))));
 var boid_data : Image
 var boid_data_texture : ImageTexture
@@ -300,6 +300,7 @@ func setupComputeShader():
 
 	
 func _draw():
+	return;
 	for x in bin_amount_horizontal:
 		for y in bin_amount_vertical:
 			draw_rect(
@@ -324,6 +325,10 @@ func logArrayAsTable(array: Array[PackedInt32Array], name: String):
 			
 
 func _process(delta): 
+	
+	bin_amount_horizontal = ceil(get_viewport_rect().size.x / bin_size)
+	bin_amount_vertical = ceil(get_viewport_rect().size.y / bin_size)
+	
 	get_window().title = " / Boids: " + str(LIST_SIZE) + " / FPS: " + str(Engine.get_frames_per_second())
 
 	updateParamBuffer(param_buffer, delta)
@@ -331,21 +336,24 @@ func _process(delta):
 	removeLastValueFromBuffer(target_buffer)
 	addValueToBuffer(target_buffer, get_global_mouse_position())
 
-	_run_compute_shader(pipeline_run_boids)
 	_run_compute_shader(pipeline_generate_bin)
 	_run_compute_shader(pipeline_generate_bin_sum)
 	_run_compute_shader(pipeline_generate_bin_lookup)
 	_run_compute_shader(pipeline_generate_boid_lookup)
+	_run_compute_shader(pipeline_run_boids)
+
+
+	#var bin_boid_index_lookup_processed = rd.buffer_get_data(bin_boid_index_lookup_buffer).to_int32_array()
+	#var bin_lookup_processed = rd.buffer_get_data(bin_index_lookup_buffer).to_int32_array()
+	#var bin_sum_processed = rd.buffer_get_data(bin_sum_buffer).to_int32_array()
+#
+	#print("Bin lookup")
+	#print(bin_lookup_processed)
+	#logArrayAsTable(bin_boid_index_lookup_processed, "Boid lookup")
+	#logArrayAsTable(bin_sum_processed, "Bin sum")
+	#
+	#queue_redraw()
 	
-
-	var bin_boid_index_lookup_processed = rd.buffer_get_data(bin_boid_index_lookup_buffer).to_int32_array()
-	var bin_lookup_processed = rd.buffer_get_data(bin_index_lookup_buffer).to_int32_array()
-	var bin_sum_processed = rd.buffer_get_data(bin_sum_buffer).to_int32_array()
-
-	print("Bin lookup")
-	print(bin_lookup_processed)
-	logArrayAsTable(bin_boid_index_lookup_processed, "Boid lookup")
-	logArrayAsTable(bin_sum_processed, "Bin sum")
 	
 
 func _run_compute_shader(pipeline):
@@ -375,7 +383,7 @@ func _on_remove_button_pressed():
 func getBinAmount():
 	var x = get_viewport_rect().size.x
 	var y = get_viewport_rect().size.y
-	return ceil(x / bin_size) * ceil (y / bin_size)
+	return ceil(x / bin_size) * ceil (y / bin_size) * 6
 
 func _ready(): 
 	
@@ -409,5 +417,4 @@ func _ready():
 		)
 	boid_data_texture_rd = $BoidParticle.process_material.get_shader_parameter("boid_data")
 	RenderingServer.call_on_render_thread(setupComputeShader)
-	queue_redraw()
 	

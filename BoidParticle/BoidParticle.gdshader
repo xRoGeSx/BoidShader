@@ -20,5 +20,13 @@ void process() {
 	TRANSFORM[0].xy = scale_rot_mat[0];
 	TRANSFORM[1].xy = scale_rot_mat[1];
 	TRANSFORM[3].xy = vec2(boid_pos_rot.r, boid_pos_rot.g); 
+	
+	if(boid_pos_rot.a == 1.0) { 
+		COLOR = vec4(1.0, 0,0,1);
+	} else if(boid_pos_rot.a == 4.0) { 
+		COLOR = vec4(0,1.0,0,1);
+	} else {
+		COLOR = vec4(255,255,255,1);
+	}
 
 }

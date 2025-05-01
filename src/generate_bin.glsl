@@ -7,8 +7,8 @@ layout(local_size_x = 1024, local_size_y = 1, local_size_z = 1) in;
 
 void main() {
     uint my_index = gl_GlobalInvocationID.x;
-    int bin_size = binParameters.size;
     float LIST_SIZE = parameters.data[0]; 
+    int bin_size = binParameters.size;
     float width = parameters.data[9];
 
     if(positions.data[my_index].x == -1) return;
