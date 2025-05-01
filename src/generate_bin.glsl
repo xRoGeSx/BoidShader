@@ -17,7 +17,7 @@ void main() {
     vec2 position = positions.data[my_index];
 
     int my_bin = 
-       int(position.x / bin_size) 
-     + int(position.y / bin_size) * int(width / bin_size);
+       int(position.x / (bin_size)) 
+     + int(position.y / (bin_size)) * int(ceil(width / bin_size));
     bin.data[my_index] = my_bin;
 }

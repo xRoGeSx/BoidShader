@@ -36,6 +36,11 @@ void main() {
     int friends = 0;
     int avoids = 0;
 
+    // int my_bin = 
+    //    int(position.x / (bin_size)) 
+    //  + int(position.y / (bin_size)) * int(ceil(width / bin_size));
+    
+
     for(int i = 0; i < LIST_SIZE; i++) {
         if( my_index == i ) continue;
 
@@ -64,7 +69,7 @@ void main() {
         }
 
        
-    }
+    } 
 
     float vel_magnitude = clamp(length(velocity), min_vel, max_vel);
 

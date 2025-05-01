@@ -102,7 +102,7 @@ var bin_amount = bin_amount_horizontal * bin_amount_vertical
 
 
 
-const LIST_SIZE = 20;
+const LIST_SIZE = 30;
 var IMAGE_SIZE = int(ceil((sqrt(LIST_SIZE))));
 var boid_data : Image
 var boid_data_texture : ImageTexture
@@ -300,8 +300,8 @@ func setupComputeShader():
 
 	
 func _draw():
-	for x in getBinAmount():
-		for y in getBinAmount():
+	for x in bin_amount_horizontal:
+		for y in bin_amount_vertical:
 			draw_rect(
 				Rect2(x * bin_size,
 					  y * bin_size,
@@ -309,7 +309,19 @@ func _draw():
 					  bin_size
 					  ), 
 				Color(255, 0,0), false, 1)
-			draw_string(ThemeDB.fallback_font, Vector2(x * bin_size  + 12, y * bin_size + 12), str(((x + 1) * (y + 1)) - 1))
+			draw_string(ThemeDB.fallback_font, Vector2(x * bin_size  + 12, y * bin_size + 22), str(x + y * bin_amount_horizontal))
+
+
+
+func logArrayAsTable(array: Array[PackedInt32Array], name: String):
+	if(name): print(name)
+	for i in bin_amount_vertical:
+		var row = [];
+		for j in bin_amount_horizontal:
+			var index = i * bin_amount_horizontal + j;
+			row.push_back(array[index])
+		print(row)
+			
 
 func _process(delta): 
 	get_window().title = " / Boids: " + str(LIST_SIZE) + " / FPS: " + str(Engine.get_frames_per_second())
@@ -329,24 +341,12 @@ func _process(delta):
 	var bin_boid_index_lookup_processed = rd.buffer_get_data(bin_boid_index_lookup_buffer).to_int32_array()
 	var bin_lookup_processed = rd.buffer_get_data(bin_index_lookup_buffer).to_int32_array()
 	var bin_sum_processed = rd.buffer_get_data(bin_sum_buffer).to_int32_array()
-	var bin_processed = rd.buffer_get_data(bin_buffer).to_int32_array()
-	# print("BOID LOOKUP:", bin_boid_index_lookup_processed)
-	print("BIN AMOUNT:", bin_amount_horizontal)
-	for i in bin_amount_vertical:
-		var row = [];
-		for j in bin_amount_horizontal:
-			var index = i * bin_amount_horizontal + j;
-			row.push_back(bin_sum_processed[index])
-		print(row)
-			
-	#print("BIN SUM:", bin_sum_processed)
-	#print("BIN LOOKUP:", bin_lookup_processed)
-	#print("INDEX LOOKUP:", bin_boid_index_lookup_processed)
-	#print("BIN SUM LENGTH : ", bin_sum_processed.size())
-	#var s = 0;
-	#for e in bin_sum_processed:
-		#s+=e;
-	#print("BIN SUM SUM : ", s)
+
+	print("Bin lookup")
+	print(bin_lookup_processed)
+	logArrayAsTable(bin_boid_index_lookup_processed, "Boid lookup")
+	logArrayAsTable(bin_sum_processed, "Bin sum")
+	
 
 func _run_compute_shader(pipeline):
 	var compute_list := rd.compute_list_begin()

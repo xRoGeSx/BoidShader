@@ -17,7 +17,7 @@ void main() {
     barrier();
     
 
-    if(my_index > boid_amount) return;
+    if(my_index >= boid_amount) return;
     
     int my_bin = bin.data[my_index];
     atomicAdd(binSum.data[my_bin], 1);
