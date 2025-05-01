@@ -11,6 +11,5 @@ shader_parameter/boid_data = SubResource("Texture2DRD_splnu")
 
 [node name="BoidParticle" type="GPUParticles2D"]
 position = Vector2(1, 2)
-scale = Vector2(0.58, 0.58)
 process_material = SubResource("ShaderMaterial_brqp2")
 texture = ExtResource("1_u8leb")

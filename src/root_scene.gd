@@ -43,10 +43,10 @@ var param_uniform: RDUniform
 var target_buffer: RID
 var target_uniform: RDUniform
 
-var boid_data_buffer : RID
+var boid_data_buffer: RID
 var boid_data_uniform: RDUniform
 
-var boid_texture : ImageTexture
+var boid_texture: ImageTexture
 var boid_texture_rd = Texture2DRD
 
 var bin_param_buffer: RID
@@ -68,8 +68,8 @@ var bin_boid_index_lookup_buffer: RID
 var bin_boid_index_lookup_uniform: RDUniform
 
 
-var input: Array[Vector2] = []
-var input2: Array[Vector2]= []
+var inital_position: Array[Vector2] = []
+var initial_velocity: Array[Vector2] = []
 var bin: Array[int] = []
 var binSum: Array[int] = []
 var binLookup: Array[int] = []
@@ -86,11 +86,11 @@ var height = 200
 @export_category("Boid Settings")
 @export_range(0, 50) var friend_radius = 10.0
 @export_range(0, 50) var avoid_radius = 5.0
-@export_range(0,100) var min_vel = 50.0
-@export_range(0,500) var max_vel = 75.0
-@export_range(0,100) var alignment_factor = 10.0
-@export_range(0,100) var cohesion_factor = 1.0
-@export_range(0,100) var separation_factor = 20.0
+@export_range(0, 100) var min_vel = 50.0
+@export_range(0, 500) var max_vel = 75.0
+@export_range(0, 100) var alignment_factor = 10.0
+@export_range(0, 100) var cohesion_factor = 1.0
+@export_range(0, 100) var separation_factor = 20.0
 
 @export var bin_size = 256;
 
@@ -100,14 +100,11 @@ var bin_amount_vertical = ceil(get_viewport_rect().size.y / bin_size)
 var bin_amount = bin_amount_horizontal * bin_amount_vertical
 
 
-
-
-const LIST_SIZE = 100000;
+const LIST_SIZE = 10000;
 var IMAGE_SIZE = int(ceil((sqrt(LIST_SIZE))));
-var boid_data : Image
-var boid_data_texture : ImageTexture
+var boid_data: Image
+var boid_data_texture: ImageTexture
 var boid_data_texture_rd = Texture2DRD
-
 
 
 func getVec2ArrayFromShader(buffer: RID) -> Array[Vector2]:
@@ -117,7 +114,7 @@ func getVec2ArrayFromShader(buffer: RID) -> Array[Vector2]:
 	var output := output_bytes.to_float32_array()
 	var outputVec2: Array[Vector2] = []
 	outputVec2.resize(output.size() / 2)
-	for index in outputVec2.size(): 
+	for index in outputVec2.size():
 		var bufferIndex = index * 2
 		outputVec2[index] = Vector2(output[bufferIndex], output[bufferIndex + 1])
 	return outputVec2
@@ -136,7 +133,7 @@ func intToBuffer(data: Array[int]):
 	return data_buffer
 func createUniformFromBuffer(
 	buffer_: RID,
-	binding_: int, 
+	binding_: int,
 	uniformType: RenderingDevice.UniformType = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER):
 	var uniform_ := RDUniform.new()
 	uniform_.uniform_type = uniformType
@@ -145,35 +142,34 @@ func createUniformFromBuffer(
 	return uniform_
 
 
-
-func arrayToPackedBytes(array) -> PackedByteArray: 
+func arrayToPackedBytes(array) -> PackedByteArray:
 	var input_ := PackedFloat32Array(array)
 	return input_.to_byte_array()
 
-func createBufferFromArray(array: Array[int]): 
+func createBufferFromArray(array: Array[int]):
 	var input_bytes = arrayToPackedBytes(array)
 	var buffer_ := rd.storage_buffer_create(input_bytes.size(), input_bytes)
 	return buffer_
 	
 func addBox():
 	var size = moving_boxes.get_child_count();
-	if size >= LIST_SIZE: return;
+	if size >= LIST_SIZE: return ;
 	moving_boxes.add_child(box.instantiate())
 	
 func removeLastBox():
 	var size = moving_boxes.get_child_count();
-	if size == 0: return 
-	var lastChild = moving_boxes.get_child(size -1);
+	if size == 0: return
+	var lastChild = moving_boxes.get_child(size - 1);
 	lastChild.queue_free()
 	moving_boxes.remove_child(lastChild)
 
 func generate_parameter_buffer(delta):
 	return [
-		LIST_SIZE, 
-		IMAGE_SIZE, 
+		LIST_SIZE,
+		IMAGE_SIZE,
 		friend_radius,
 		avoid_radius,
-		min_vel, 
+		min_vel,
 		max_vel,
 		alignment_factor,
 		cohesion_factor,
@@ -184,15 +180,13 @@ func generate_parameter_buffer(delta):
 	]
 	
 
-
 func updateParamBuffer(buffer_: RID, delta: float):
 	var updatedBuffer = arrayToPackedBytes(generate_parameter_buffer(delta))
 	return rd.buffer_update(buffer_, 0, updatedBuffer.size(), updatedBuffer)
 
 
 func addValueToBuffer(buffer_: RID, value: Vector2):
-	
-	var array = rd.buffer_get_data(buffer_).to_float32_array() 
+	var array = rd.buffer_get_data(buffer_).to_float32_array()
 	var firstEmptyValueIndex = array.find(-1)
 
 	if firstEmptyValueIndex == -1: return
@@ -205,36 +199,33 @@ func addValueToBuffer(buffer_: RID, value: Vector2):
 	rd.buffer_update(buffer_, 0, packedBytes.size(), packedBytes)
 
 func removeLastValueFromBuffer(buffer_: RID):
-	var array =  rd.buffer_get_data(buffer_).to_float32_array() 
+	var array = rd.buffer_get_data(buffer_).to_float32_array()
 	var firstEmptyValueIndex = array.find(-1)
 	if firstEmptyValueIndex == 0: return
 
 	var size = array.size()
 	
 	if firstEmptyValueIndex == -1:
-		firstEmptyValueIndex = array.size() 
+		firstEmptyValueIndex = array.size()
 
 	array.set(firstEmptyValueIndex - 1, -1)
 	array.set(firstEmptyValueIndex - 2, -1)
 	var packedBytes = arrayToPackedBytes(array)
 	rd.buffer_update(buffer_, 0, packedBytes.size(), packedBytes)
 
-func replaceValueInBuffer(buffer_: RID, index: int,  value: int):
-	var array =  rd.buffer_get_data(buffer_).to_float32_array() 
+func replaceValueInBuffer(buffer_: RID, index: int, value: int):
+	var array = rd.buffer_get_data(buffer_).to_float32_array()
 	array.remove_at(index)
 	array.insert(index, value)
 	var packedBytes = arrayToPackedBytes(array)
 	rd.buffer_update(buffer_, 0, packedBytes.size(), packedBytes)
 
 
-
-
-
 func setupComputeShader():
-	boid_data = Image.create(IMAGE_SIZE, IMAGE_SIZE, false, Image.FORMAT_RGBAH)			
+	boid_data = Image.create(IMAGE_SIZE, IMAGE_SIZE, false, Image.FORMAT_RGBAH)
 	for w in IMAGE_SIZE:
 		for h in IMAGE_SIZE:
-			boid_data.set_pixel(w, h, Color(255, 255, 255))		
+			boid_data.set_pixel(w, h, Color(255, 255, 255))
 			
 	$BoidParticle.amount = LIST_SIZE
 
@@ -252,15 +243,14 @@ func setupComputeShader():
 	imagemock.resize(LIST_SIZE)
 	imagemock.fill(255)
 
-	boid_data_buffer = rd.texture_create(fmt, view,  boid_data.get_data())
+	boid_data_buffer = rd.texture_create(fmt, view, boid_data.get_data())
 	boid_data_texture_rd.texture_rd_rid = boid_data_buffer
 	
 
-
-	position_buffer = vec2ToBuffer(input)
-	velocity_buffer = vec2ToBuffer(input2)
+	position_buffer = vec2ToBuffer(inital_position)
+	velocity_buffer = vec2ToBuffer(initial_velocity)
 	param_buffer = floatToBuffer(params)
-	target_buffer = vec2ToBuffer(([Vector2(-1,-1)]))
+	target_buffer = vec2ToBuffer(([Vector2(-1, -1)]))
 	bin_param_buffer = intToBuffer([bin_size, getBinAmount()])
 	bin_buffer = intToBuffer(bin)
 	bin_sum_buffer = intToBuffer(binSum)
@@ -298,24 +288,22 @@ func setupComputeShader():
 	pass
 
 
-	
 func _draw():
-	return;
+	return ;
 	for x in bin_amount_horizontal:
 		for y in bin_amount_vertical:
 			draw_rect(
 				Rect2(x * bin_size,
-					  y * bin_size,
+						  y * bin_size,
 					  bin_size,
 					  bin_size
-					  ), 
-				Color(255, 0,0), false, 1)
-			draw_string(ThemeDB.fallback_font, Vector2(x * bin_size  + 12, y * bin_size + 22), str(x + y * bin_amount_horizontal))
-
+					  ),
+				Color(255, 0, 0), false, 1)
+			draw_string(ThemeDB.fallback_font, Vector2(x * bin_size + 12, y * bin_size + 22), str(x + y * bin_amount_horizontal))
 
 
 func logArrayAsTable(array: Array[PackedInt32Array], name: String):
-	if(name): print(name)
+	if (name): print(name)
 	for i in bin_amount_vertical:
 		var row = [];
 		for j in bin_amount_horizontal:
@@ -324,8 +312,7 @@ func logArrayAsTable(array: Array[PackedInt32Array], name: String):
 		print(row)
 			
 
-func _process(delta): 
-	
+func _process(delta):
 	bin_amount_horizontal = ceil(get_viewport_rect().size.x / bin_size)
 	bin_amount_vertical = ceil(get_viewport_rect().size.y / bin_size)
 	
@@ -342,20 +329,11 @@ func _process(delta):
 	_run_compute_shader(pipeline_generate_boid_lookup)
 	_run_compute_shader(pipeline_run_boids)
 
+	if (Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)):
+		addBoid(get_viewport().get_mouse_position())
+		return ;
 
-	#var bin_boid_index_lookup_processed = rd.buffer_get_data(bin_boid_index_lookup_buffer).to_int32_array()
-	#var bin_lookup_processed = rd.buffer_get_data(bin_index_lookup_buffer).to_int32_array()
-	#var bin_sum_processed = rd.buffer_get_data(bin_sum_buffer).to_int32_array()
-#
-	#print("Bin lookup")
-	#print(bin_lookup_processed)
-	#logArrayAsTable(bin_boid_index_lookup_processed, "Boid lookup")
-	#logArrayAsTable(bin_sum_processed, "Bin sum")
-	#
-	#queue_redraw()
 	
-	
-
 func _run_compute_shader(pipeline):
 	var compute_list := rd.compute_list_begin()
 	rd.compute_list_bind_compute_pipeline(compute_list, pipeline)
@@ -364,12 +342,15 @@ func _run_compute_shader(pipeline):
 	rd.compute_list_end()
 
 	
-
 func _on_add_button_pressed():
 	addBox()
-	addValueToBuffer(velocity_buffer, Vector2(1,1))
-	addValueToBuffer(position_buffer, Vector2(1,1))
+	addValueToBuffer(velocity_buffer, Vector2(1, 1))
+	addValueToBuffer(position_buffer, Vector2(1, 1))
 	pass # Replace with function body.
+
+func addBoid(position: Vector2):
+	addValueToBuffer(velocity_buffer, Vector2(1, 1))
+	addValueToBuffer(position_buffer, position)
 
 
 func _on_remove_button_pressed():
@@ -383,15 +364,14 @@ func _on_remove_button_pressed():
 func getBinAmount():
 	var x = get_viewport_rect().size.x
 	var y = get_viewport_rect().size.y
-	return ceil(x / bin_size) * ceil (y / bin_size) * 6
+	return ceil(x / bin_size) * ceil(y / bin_size) * 6
 
-func _ready(): 
-	
-	input.resize(LIST_SIZE)
-	input2.resize(LIST_SIZE)
+func _ready():
+	inital_position.resize(LIST_SIZE)
+	initial_velocity.resize(LIST_SIZE)
 	
 	bin.resize(LIST_SIZE)
-	bin.fill(0)	
+	bin.fill(0)
 	binSum.resize(getBinAmount())
 	binSum.fill(0)
 	binLookup.resize(getBinAmount())
@@ -405,16 +385,12 @@ func _ready():
 	bin_amount_vertical = ceil(get_viewport_rect().size.y / bin_size)
 	
 	
-
 	for i in LIST_SIZE:
-		input[i] = Vector2(
-			randf_range(0, width),
-			randf_range(0, height)
+		inital_position[i] = Vector2(
+			-1, -1
 		)
-		input2[i] = Vector2(
-			randf_range(0, width /10),
-			randf_range(0, height / 10)
+		initial_velocity[i] = Vector2(
+			-1, -1
 		)
 	boid_data_texture_rd = $BoidParticle.process_material.get_shader_parameter("boid_data")
 	RenderingServer.call_on_render_thread(setupComputeShader)
-	

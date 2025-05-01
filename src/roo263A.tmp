@@ -5,16 +5,17 @@
 
 [node name="RootScene" type="Node2D"]
 script = ExtResource("1_xc3cs")
-friend_radius = 35.279
-avoid_radius = 8.759
+friend_radius = 16.858
+avoid_radius = 7.256
 min_vel = 59.023
-max_vel = 172.744
-alignment_factor = 14.511
-cohesion_factor = 63.825
-separation_factor = 100.0
-bin_size = 20
+max_vel = 138.909
+alignment_factor = 12.255
+cohesion_factor = 22.471
+separation_factor = 38.798
+bin_size = 25
 
 [node name="BoidParticle" parent="." instance=ExtResource("2_hgj33")]
+scale = Vector2(1, 1)
 
 [node name="AddButton" type="Button" parent="."]
 visible = false
