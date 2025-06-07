@@ -44,47 +44,25 @@ vec2 raycast(vec2 a1, vec2 a2, vec2 b1, vec2 b2) {
     return vec2(x, y);
 }
 
-void main() {
+void processBoidCollision(int my_index, inout vec2 result[4]) {
 
-    uint my_index = gl_GlobalInvocationID.x;
-    int watching_index = 0;
-
-    float LIST_SIZE = parameters.data[0];
-
-    if(positions.data[my_index].x == -1)
-        return;
-    if(my_index > LIST_SIZE)
-        return;
-
-    float IMAGE_SIZE = parameters.data[1];
-    ivec2 pixel_pos = ivec2(int(mod(my_index, IMAGE_SIZE)), int(my_index / IMAGE_SIZE));
+    float width = parameters.data[9];
+    float height = parameters.data[10];
 
     float friend_radius = parameters.data[2];
     float avoid_radius = parameters.data[3];
-    float min_vel = parameters.data[4];
-    float max_vel = parameters.data[5];
-    float alignment_factor = parameters.data[6];
-    float cohesion_factor = parameters.data[7];
-    float separation_factor = parameters.data[8];
-    float width = parameters.data[9];
-    float height = parameters.data[10];
-    float delta = parameters.data[11];
 
     float bin_amount = binParameters.amount;
     int bin_size = binParameters.size;
-
-    vec2 position = positions.data[my_index];
-    vec2 velocity = velocities.data[my_index];
-    vec2 target = targets.data[0];
+    int horizontal_bin_amount = int(ceil(width / bin_size));
 
     vec2 cohesion = vec2(0, 0);
     vec2 separation = vec2(0, 0);
     vec2 alignment = vec2(0, 0);
-
     int friends = 0;
     int avoids = 0;
 
-    int horizontal_bin_amount = int(ceil(width / bin_size));
+    vec2 position = positions.data[my_index];
 
     int my_bin = int(position.x / (bin_size)) + int(position.y / (bin_size)) * horizontal_bin_amount;
 
@@ -120,15 +98,60 @@ void main() {
                         separation += position - otherPosition;
                     }
                 }
-                if(watching_index == my_index) {
-                    ivec2 pixel_pos = ivec2(int(mod(i, IMAGE_SIZE)), int(i / IMAGE_SIZE));
-                    vec4 previous_pixel = imageLoad(boid_texture, pixel_pos);
-                    imageStore(boid_texture, pixel_pos, vec4(previous_pixel.r, previous_pixel.g, previous_pixel.b, detection));
-                }
+                // if(watching_index == my_index) {
+                //     ivec2 pixel_pos = ivec2(int(mod(i, IMAGE_SIZE)), int(i / IMAGE_SIZE));
+                //     vec4 previous_pixel = imageLoad(boid_texture, pixel_pos);
+                //     imageStore(boid_texture, pixel_pos, vec4(previous_pixel.r, previous_pixel.g, previous_pixel.b, detection));
+                // }
 
             }
         }
     }
+    result[0] = cohesion;
+    result[1] = separation;
+    result[2] = alignment;
+    result[3] = vec2(friends, avoids);
+}
+
+void main() {
+
+    uint my_index = gl_GlobalInvocationID.x;
+    int watching_index = 0;
+
+    float LIST_SIZE = parameters.data[0];
+
+    if(positions.data[my_index].x == -1)
+        return;
+    if(my_index > LIST_SIZE)
+        return;
+
+    float IMAGE_SIZE = parameters.data[1];
+    ivec2 pixel_pos = ivec2(int(mod(my_index, IMAGE_SIZE)), int(my_index / IMAGE_SIZE));
+
+    float min_vel = parameters.data[4];
+    float max_vel = parameters.data[5];
+    float alignment_factor = parameters.data[6];
+    float cohesion_factor = parameters.data[7];
+    float separation_factor = parameters.data[8];
+    float width = parameters.data[9];
+    float height = parameters.data[10];
+    float delta = parameters.data[11];
+
+    int bin_size = binParameters.size;
+
+    vec2 position = positions.data[my_index];
+    vec2 velocity = velocities.data[my_index];
+    vec2 target = targets.data[0];
+
+    vec2[4] boidCollisionResult = vec2[](vec2(0, 0), vec2(0, 0), vec2(0, 0), vec2(0, 0));
+    processBoidCollision(int(my_index), boidCollisionResult);
+
+    vec2 cohesion = boidCollisionResult[0];
+    vec2 separation = boidCollisionResult[1];
+    vec2 alignment = boidCollisionResult[2];
+
+    int friends = int(boidCollisionResult[3].x);
+    int avoids = int(boidCollisionResult[3].y);
 
     float vel_magnitude = clamp(length(velocity), min_vel, max_vel);
 
@@ -171,7 +194,7 @@ void main() {
             continue;
         }
         if(numberOfIntersections % 2 != 0) {
-            separation_factor *= 3;
+            separation_factor *= 5;
             velocity += normalize(polygonCenter - position) * -.5;
             for(int i = 0; i < currentPolygon; i++) {
                 vec2 ray = position;
