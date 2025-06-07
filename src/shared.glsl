@@ -52,3 +52,14 @@ layout(set = 0, binding = 10, std430) restrict buffer BinBoidLookup {
 } 
 binBoidLookups;
 
+layout(set = 1, binding = 0, std430) restrict buffer PolygonVerticies {
+    vec2 data[];
+} 
+polygonVerticies;
+
+
+layout(set = 1, binding = 1, std430) restrict buffer PolygonVerticiesLookup {
+    int data[];
+} 
+polygonVerticiesLookup;
+

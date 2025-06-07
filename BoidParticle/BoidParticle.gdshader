@@ -2,7 +2,9 @@ shader_type particles;
 
 
 uniform sampler2D boid_data;
+uniform sampler2D noise;
 
+uniform vec2 scroll = vec2(0.05, 0.05);
 
 void process() {
 	ivec2 pos_image_size = textureSize(boid_data, 0);
@@ -21,10 +23,16 @@ void process() {
 	TRANSFORM[1].xy = scale_rot_mat[1];
 	TRANSFORM[3].xy = vec2(boid_pos_rot.r, boid_pos_rot.g); 
 	
+	vec4 noise_texture = texture(noise, vec2(boid_pos_rot.r, boid_pos_rot.g) * scroll * TIME);
+	//vec4 noise_texture2 = texture(noise, vec2(boid_pos_rot.r, boid_pos_rot.g) * scroll * TIME * scroll);
+	//vec4 noise_texture3 = texture(noise, vec2(boid_pos_rot.r, boid_pos_rot.g) * scroll * TIME * scroll * scroll);
+	//COLOR = vec4(noise_texture.r, noise_texture2.r,noise_texture3.r,1);
 	if(boid_pos_rot.a == 1.0) { 
 		COLOR = vec4(1.0, 0,0,1);
 	} else if(boid_pos_rot.a == 4.0) { 
 		COLOR = vec4(0,1.0,0,1);
+	} else if (boid_pos_rot.a == 5.0) {
+		COLOR = vec4(0,0,1,1);		
 	} else {
 		COLOR = vec4(255,255,255,1);
 	}

@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://3kvkup1nlkb3"
+path="res://.godot/imported/run_boids.glsl-86752a9d37f84e82843c2f738fd1808a.res"
+
+[deps]
+
+source_file="res://src/run_boids.glsl"
+dest_files=["res://.godot/imported/run_boids.glsl-86752a9d37f84e82843c2f738fd1808a.res"]
+
+[params]
+

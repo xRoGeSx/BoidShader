@@ -19,6 +19,4 @@ void main() {
     
     int prev_index = atomicAdd(binIndexTackLookup.data[my_bin], 1);
     binBoidLookups.data[prev_index] = int(my_index);
-    
-
 }

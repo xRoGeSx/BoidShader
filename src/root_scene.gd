@@ -1,12 +1,18 @@
 extends Node2D
 
+
+const LIST_SIZE = 20000;
+const MAX_POLYGON_VERTICES = 20;
+
 var rd := RenderingServer.get_rendering_device()
 @onready var moving_boxes = $MovingBoxes
 @onready var particle: GPUParticles2D = $BoidParticle
+@onready var polygon = $Polygon2D
+
 const box = preload("res://src/Box/Box.tscn")
 
 
-var run_boids_shader_file := load("res://src/compute_example.glsl")
+var run_boids_shader_file := load("res://src/run_boids.glsl")
 var run_boids_shader_spirv: RDShaderSPIRV = run_boids_shader_file.get_spirv()
 var run_boids_shader := rd.shader_create_from_spirv(run_boids_shader_spirv)
 var pipeline_run_boids := rd.compute_pipeline_create(run_boids_shader)
@@ -30,6 +36,11 @@ var generate_boid_lookup_shader_file := load("res://src/generate_bin_boid_lookup
 var generate_boid_lookup_shader_spirv: RDShaderSPIRV = generate_boid_lookup_shader_file.get_spirv()
 var generate_boid_lookup_shader := rd.shader_create_from_spirv(generate_boid_lookup_shader_spirv)
 var pipeline_generate_boid_lookup := rd.compute_pipeline_create(generate_boid_lookup_shader)
+
+var process_polygons_shader_file := load("res://src/process_polygons.glsl")
+var process_polygons_shader_spirv: RDShaderSPIRV = process_polygons_shader_file.get_spirv()
+var process_polygons_shader := rd.shader_create_from_spirv(process_polygons_shader_spirv)
+var pipeline_process_polygons := rd.compute_pipeline_create(process_polygons_shader)
 
 var position_buffer: RID
 var position_uniform: RDUniform
@@ -68,8 +79,18 @@ var bin_boid_index_lookup_buffer: RID
 var bin_boid_index_lookup_uniform: RDUniform
 
 
+var polygon_vertex_buffer: RID
+var polygon_vertex_uniform: RDUniform
+
+var polygon_vertex_lookup_buffer: RID
+var polygon_vertex_lookup_uniform: RDUniform;
+
+
 var inital_position: Array[Vector2] = []
 var initial_velocity: Array[Vector2] = []
+var initial_verticies: Array[Vector2] = []
+var initial_lookup: Array[int] = []
+
 var bin: Array[int] = []
 var binSum: Array[int] = []
 var binLookup: Array[int] = []
@@ -77,7 +98,8 @@ var binLookupTrack: Array[int] = []
 var binIndexBoidLookup: Array[int] = []
 
 
-var shared: RID
+var shared_boid_uniform: RID
+var shared_polygon_uniform: RID
 
 
 var width = 400
@@ -91,6 +113,8 @@ var height = 200
 @export_range(0, 100) var alignment_factor = 10.0
 @export_range(0, 100) var cohesion_factor = 1.0
 @export_range(0, 100) var separation_factor = 20.0
+@export var PREFILL = true;
+@export var RENDER_BIN = true;
 
 @export var bin_size = 256;
 
@@ -100,7 +124,6 @@ var bin_amount_vertical = ceil(get_viewport_rect().size.y / bin_size)
 var bin_amount = bin_amount_horizontal * bin_amount_vertical
 
 
-const LIST_SIZE = 10000;
 var IMAGE_SIZE = int(ceil((sqrt(LIST_SIZE))));
 var boid_data: Image
 var boid_data_texture: ImageTexture
@@ -108,8 +131,6 @@ var boid_data_texture_rd = Texture2DRD
 
 
 func getVec2ArrayFromShader(buffer: RID) -> Array[Vector2]:
-	rd.submit()
-	rd.sync()
 	var output_bytes := rd.buffer_get_data(buffer)
 	var output := output_bytes.to_float32_array()
 	var outputVec2: Array[Vector2] = []
@@ -258,6 +279,9 @@ func setupComputeShader():
 	bin_index_lookup_track_buffer = intToBuffer(binLookupTrack)
 	bin_boid_index_lookup_buffer = intToBuffer(binIndexBoidLookup)
 
+	polygon_vertex_buffer = vec2ToBuffer(initial_verticies)
+	polygon_vertex_lookup_buffer = intToBuffer(initial_lookup)
+
 
 	position_uniform = createUniformFromBuffer(position_buffer, 0)
 	velocity_uniform = createUniformFromBuffer(velocity_buffer, 1)
@@ -271,7 +295,10 @@ func setupComputeShader():
 	bin_index_lookup_track_uniform = createUniformFromBuffer(bin_index_lookup_track_buffer, 9)
 	bin_boid_index_lookup_uniform = createUniformFromBuffer(bin_boid_index_lookup_buffer, 10)
 
-	shared = rd.uniform_set_create([
+	polygon_vertex_uniform = createUniformFromBuffer(polygon_vertex_buffer, 0)
+	polygon_vertex_lookup_uniform = createUniformFromBuffer(polygon_vertex_lookup_buffer, 1)
+
+	shared_boid_uniform = rd.uniform_set_create([
 		position_uniform,
 		velocity_uniform,
 		param_uniform,
@@ -284,12 +311,17 @@ func setupComputeShader():
 		bin_index_lookup_track_uniform,
 		bin_boid_index_lookup_uniform
 	], run_boids_shader, 0)
+
+	shared_polygon_uniform = rd.uniform_set_create([
+		polygon_vertex_uniform,
+		polygon_vertex_lookup_uniform
+	], process_polygons_shader, 1)
 	
 	pass
 
 
 func _draw():
-	return ;
+	if (!RENDER_BIN): return ;
 	for x in bin_amount_horizontal:
 		for y in bin_amount_vertical:
 			draw_rect(
@@ -322,6 +354,12 @@ func _process(delta):
 	
 	removeLastValueFromBuffer(target_buffer)
 	addValueToBuffer(target_buffer, get_global_mouse_position())
+	
+	if (Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)):
+		for num in 10:
+			addBoid(get_viewport().get_mouse_position())
+	if (Input.is_key_pressed(KEY_Q)):
+		return ;
 
 	_run_compute_shader(pipeline_generate_bin)
 	_run_compute_shader(pipeline_generate_bin_sum)
@@ -329,15 +367,20 @@ func _process(delta):
 	_run_compute_shader(pipeline_generate_boid_lookup)
 	_run_compute_shader(pipeline_run_boids)
 
-	if (Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)):
-		addBoid(get_viewport().get_mouse_position())
-		return ;
+
+	_run_compute_shader(pipeline_process_polygons)
+
+	#var poly = rd.buffer_get_data(polygon_vertex_lookup_buffer).to_int32_array();
+	#var polyv = getVec2ArrayFromShader(polygon_vertex_buffer);
+	#print(poly)
+	#print(polyv)
 
 	
 func _run_compute_shader(pipeline):
 	var compute_list := rd.compute_list_begin()
 	rd.compute_list_bind_compute_pipeline(compute_list, pipeline)
-	rd.compute_list_bind_uniform_set(compute_list, shared, 0)
+	rd.compute_list_bind_uniform_set(compute_list, shared_boid_uniform, 0)
+	rd.compute_list_bind_uniform_set(compute_list, shared_polygon_uniform, 1)
 	rd.compute_list_dispatch(compute_list, round(LIST_SIZE / 1024 + 1), 1, 1)
 	rd.compute_list_end()
 
@@ -369,6 +412,29 @@ func getBinAmount():
 func _ready():
 	inital_position.resize(LIST_SIZE)
 	initial_velocity.resize(LIST_SIZE)
+	if (PREFILL):
+		for i in LIST_SIZE:
+			inital_position[i] = Vector2(
+				randf() * get_viewport_rect().size.x,
+				randf() * get_viewport_rect().size.y
+			)
+			initial_velocity[i] = Vector2(randf(), randf())
+	else:
+		for i in LIST_SIZE:
+			inital_position[i] = Vector2(
+				-1, -1
+			)
+			initial_velocity[i] = Vector2(
+				-1, -1
+			)
+	
+	# print(polygon.polygon)
+	# 0. Define polygon vertices array and polygon lookup array
+	# 1. Pass polygon into shader
+	# 2. Pass polygon lookup into shader
+	# 3. Get the polygon center, lookup boinds at certain distance from center
+	# 4. If boid is already inside polygon - do nothing, if outside - attracks to center
+	# 5. For boinds inside polygon - check distance to each edge, if close - invert the velocity
 	
 	bin.resize(LIST_SIZE)
 	bin.fill(0)
@@ -380,17 +446,20 @@ func _ready():
 	binLookupTrack.fill(0)
 	binIndexBoidLookup.resize(LIST_SIZE)
 	binIndexBoidLookup.fill(0)
+	initial_lookup.resize(MAX_POLYGON_VERTICES)
+	initial_verticies.resize(MAX_POLYGON_VERTICES)
 	
 	bin_amount_horizontal = ceil(get_viewport_rect().size.x / bin_size)
 	bin_amount_vertical = ceil(get_viewport_rect().size.y / bin_size)
+
 	
+	for i in MAX_POLYGON_VERTICES:
+		initial_verticies[i] = Vector2(-1, -1)
+		if (i < polygon.polygon.size()):
+			initial_verticies[i] = polygon.polygon[i] + polygon.position;
+		initial_lookup[i] = -1;
+	initial_lookup[0] = polygon.polygon.size();
+
 	
-	for i in LIST_SIZE:
-		inital_position[i] = Vector2(
-			-1, -1
-		)
-		initial_velocity[i] = Vector2(
-			-1, -1
-		)
 	boid_data_texture_rd = $BoidParticle.process_material.get_shader_parameter("boid_data")
 	RenderingServer.call_on_render_thread(setupComputeShader)

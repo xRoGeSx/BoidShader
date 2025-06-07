@@ -17,6 +17,36 @@ float velocityToRotation(vec2 vel) {
     return rotation;
 }
 
+vec2 calculateNormal(vec2 edgeStart, vec2 edgeEnd, vec2 point)
+{
+  vec2 lineDir = edgeEnd - edgeStart;
+  vec2 perpDir = vec2(lineDir.y, -lineDir.x);
+  vec2 dirToedgeStart = edgeStart - point;
+  return perpDir;
+}
+
+
+float DistToLine(vec2 edgeStart, vec2 edgeEnd, vec2 point)
+{
+  vec2 lineDir = edgeEnd - edgeStart;
+  vec2 perpDir = vec2(lineDir.y, -lineDir.x);
+  vec2 dirToedgeStart = edgeStart - point;
+  return abs(dot(normalize(perpDir), dirToedgeStart));
+}
+
+vec2 raycast (vec2 a1, vec2 a2, vec2 b1, vec2 b2) {
+    float denominator =  ((b2.y - b1.y) * (a2.x  - a1.x)) - ((b2.x - b1.x)* (a2.y - a1.y));
+    if(denominator == 0) return vec2(0,0);
+
+    float ua = (((b2.x - b1.x) * (a1.y - b1.y)) -  ((b2.y - b1.y) * (a1.x - b1.x))) / denominator;
+    float ub = (((a2.x - a1.x) * (a1.y - b1.y)) - ((a2.y - a1.y) * (a1.x - b1.x))) / denominator;
+
+    float x = a1.x + ua * (a2.x - a1.x);
+    float y = a1.y + ub * (a2.y - a1.x);
+
+    return vec2(x,y);
+}
+
 void main() {
 
     uint my_index = gl_GlobalInvocationID.x;
@@ -111,6 +141,72 @@ void main() {
   
 
       
+
+
+    float vel_magnitude = clamp(length(velocity), min_vel, max_vel);
+
+    velocity = vel_magnitude * normalize(velocity);
+
+    if(distance(position, target) < 325.0) {
+        velocity += normalize(target - position) * 50.0;
+    }
+
+     vec4 old_texture_pixel = imageLoad(boid_texture, pixel_pos);
+    int detection_type = int(old_texture_pixel.a);
+    if(my_index == watching_index){
+        detection_type = 4;
+    }
+
+    vec2 polygonCenter = vec2(0,0);
+    int verticies = 0;
+    vec2 polygon[1] = vec2[1](vec2(1,1));
+    for(int i = 0; i < polygonVerticiesLookup.data[0]; i++) {
+      verticies++;
+      polygonCenter += polygonVerticies.data[i];
+      continue;
+    }
+    polygonCenter /= verticies;
+
+    if(distance(polygonCenter, position) < 200) {
+        /* Point is in polygon attraction  range */
+        /* Check if the point is inside polygon */
+      bool isInside = false;
+      int numberOfIntersections = 0;
+      int currentPolygon = polygonVerticiesLookup.data[0];
+      for(int i = 0; i < currentPolygon; i++) {
+        vec2 ray = position;
+        vec2 edgeStart = polygonVerticies.data[i];
+        vec2 edgeEnd = polygonVerticies.data[i == currentPolygon -1 ? 0 : i + 1];
+        if(ray.y > edgeStart.y && ray.y > edgeEnd.y) continue;
+        if(ray.y < edgeStart.y && ray.y < edgeEnd.y) continue;
+        if(ray.x < edgeStart.x + ((ray.y - edgeStart.y)/(edgeEnd.y -  edgeStart.y)) * (edgeEnd.x - edgeStart.x)) numberOfIntersections++;
+        continue;
+      }
+      if(numberOfIntersections % 2 != 0) {
+        separation_factor *= 3;
+         velocity +=  normalize(polygonCenter - position) * -.5; 
+         for(int i = 0; i < currentPolygon; i++) {
+            vec2 ray = position;
+            vec2 rayEnd = position + velocity * 100;
+            vec2 edgeStart = polygonVerticies.data[i];
+            vec2 edgeEnd = polygonVerticies.data[i == currentPolygon -1 ? 0 : i + 1];
+            vec2 intersection = raycast(edgeStart, edgeEnd, ray, rayEnd);
+            float distanceToEdge = length(position - intersection);
+            if(abs(distanceToEdge) < 2) {
+                // velocity = -velocity * 2;
+                velocity += normalize(position - intersection) * 50.0;
+                detection_type = 5;
+            }
+            continue;
+        }
+
+
+        /* Is inside polygon */
+      } else {
+        velocity +=  normalize(polygonCenter - position) * 30.0; 
+      }
+    }
+
     if(friends > 0) {
         velocity += normalize(alignment / friends) * alignment_factor ;
         velocity += normalize(cohesion / friends - position) * cohesion_factor ;
@@ -120,13 +216,6 @@ void main() {
         velocity += normalize(separation) * separation_factor ;
     }
 
-    float vel_magnitude = clamp(length(velocity), min_vel, max_vel);
-
-    velocity = vel_magnitude * normalize(velocity);
-
-    if(distance(position, target) < 325.0) {
-        velocity += normalize(target - position) * 50.0;
-    }
 
     position += velocity * delta;
 
@@ -137,11 +226,7 @@ void main() {
     float rotation = velocityToRotation(velocity);
 
 
-    vec4 old_texture_pixel = imageLoad(boid_texture, pixel_pos);
-    int detection_type = int(old_texture_pixel.a);
-    if(my_index == watching_index){
-        detection_type = 4;
-    }
+   
     imageStore(boid_texture, pixel_pos, vec4(position.x, position.y, rotation, detection_type));
 
 

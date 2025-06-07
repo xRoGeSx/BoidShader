@@ -5,14 +5,15 @@
 
 [node name="RootScene" type="Node2D"]
 script = ExtResource("1_xc3cs")
-friend_radius = 35.279
-avoid_radius = 8.759
-min_vel = 59.023
-max_vel = 172.744
-alignment_factor = 14.511
-cohesion_factor = 63.825
-separation_factor = 100.0
-bin_size = 20
+friend_radius = 10.09
+avoid_radius = 7.073
+min_vel = 25.564
+max_vel = 78.956
+alignment_factor = 13.341
+cohesion_factor = 14.199
+separation_factor = 28.573
+RENDER_BIN = false
+bin_size = 32
 
 [node name="BoidParticle" parent="." instance=ExtResource("2_hgj33")]
 
@@ -33,6 +34,11 @@ offset_bottom = 309.0
 text = "REMOVE"
 
 [node name="MovingBoxes" type="Node" parent="."]
+
+[node name="Polygon2D" type="Polygon2D" parent="."]
+position = Vector2(308.029, 261.353)
+color = Color(1, 1, 1, 0.176471)
+polygon = PackedVector2Array(-15, -60, 13, -70, 37, -59, 56, -32, 75, -59, 97, -67, 120, -57, 134, -32, 139, -10, 133, 19, 104, 53, 75, 78, 44, 100, 12, 72, -7, 48, -28, 23, -37, -4, -31, -32)
 
 [connection signal="pressed" from="AddButton" to="." method="_on_add_button_pressed"]
 [connection signal="pressed" from="RemoveButton" to="." method="_on_remove_button_pressed"]
