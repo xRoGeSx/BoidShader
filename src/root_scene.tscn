@@ -36,9 +36,10 @@ text = "REMOVE"
 [node name="MovingBoxes" type="Node" parent="."]
 
 [node name="Polygon2D" type="Polygon2D" parent="."]
-position = Vector2(308.029, 261.353)
+position = Vector2(359.424, 294.882)
+scale = Vector2(1.84118, 1.84118)
 color = Color(1, 1, 1, 0.176471)
-polygon = PackedVector2Array(-15, -60, 13, -70, 37, -59, 56, -32, 75, -59, 97, -67, 120, -57, 134, -32, 139, -10, 133, 19, 104, 53, 75, 78, 44, 100, 12, 72, -7, 48, -28, 23, -37, -4, -31, -32)
+polygon = PackedVector2Array(-15, -60, 13, -70, 37, -59, 56, -32, 75, -59, 97, -67, 124.766, -58.3761, 137.843, -35.6125, 142.687, -8.49004, 133, 19, 104, 53, 75, 78, 44, 100, 12, 72, -7, 48, -28, 23, -37, -4, -31, -32)
 
 [connection signal="pressed" from="AddButton" to="." method="_on_add_button_pressed"]
 [connection signal="pressed" from="RemoveButton" to="." method="_on_remove_button_pressed"]

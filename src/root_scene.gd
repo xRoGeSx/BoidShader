@@ -1,8 +1,8 @@
 extends Node2D
 
 
-const LIST_SIZE = 20000;
-const MAX_POLYGON_VERTICES = 20;
+const LIST_SIZE = 50000;
+const MAX_POLYGON_VERTICES = 50;
 
 var rd := RenderingServer.get_rendering_device()
 @onready var moving_boxes = $MovingBoxes
@@ -428,14 +428,6 @@ func _ready():
 				-1, -1
 			)
 	
-	# print(polygon.polygon)
-	# 0. Define polygon vertices array and polygon lookup array
-	# 1. Pass polygon into shader
-	# 2. Pass polygon lookup into shader
-	# 3. Get the polygon center, lookup boinds at certain distance from center
-	# 4. If boid is already inside polygon - do nothing, if outside - attracks to center
-	# 5. For boinds inside polygon - check distance to each edge, if close - invert the velocity
-	
 	bin.resize(LIST_SIZE)
 	bin.fill(0)
 	binSum.resize(getBinAmount())
@@ -456,7 +448,7 @@ func _ready():
 	for i in MAX_POLYGON_VERTICES:
 		initial_verticies[i] = Vector2(-1, -1)
 		if (i < polygon.polygon.size()):
-			initial_verticies[i] = polygon.polygon[i] + polygon.position;
+			initial_verticies[i] = (polygon.polygon[i] * polygon.scale) + polygon.position;
 		initial_lookup[i] = -1;
 	initial_lookup[0] = polygon.polygon.size();
 
