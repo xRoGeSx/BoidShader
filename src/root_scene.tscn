@@ -6,18 +6,15 @@
 
 [node name="RootScene" type="Node2D"]
 script = ExtResource("1_xc3cs")
-friend_radius = 11.183
-avoid_radius = 8.201
+friend_radius = 11.859
+avoid_radius = 7.187
 min_vel = 27.068
 max_vel = 97.788
-alignment_factor = 35.145
-cohesion_factor = 21.052
-separation_factor = 22.556
-PREFILL = false
+alignment_factor = 19.164
+cohesion_factor = 27.809
+separation_factor = 18.451
 RENDER_BIN = false
-bin_size = 23
-
-[node name="ShapeSpawner" parent="." instance=ExtResource("2_mkbhh")]
+bin_size = 26
 
 [node name="BoidParticle" parent="." instance=ExtResource("2_hgj33")]
 
@@ -26,15 +23,21 @@ bin_size = 23
 [node name="BacupPolygons" type="Node2D" parent="."]
 visible = false
 
-[node name="Heart3" type="Polygon2D" parent="BacupPolygons"]
-position = Vector2(89, 342)
-scale = Vector2(0.494263, 0.494263)
+[node name="Diamond" type="Polygon2D" parent="BacupPolygons"]
+position = Vector2(766, 230)
+scale = Vector2(1.24706, 1.24706)
 color = Color(1, 1, 1, 0.176471)
-polygon = PackedVector2Array(-15, -60, 13, -70, 37, -59, 56, -32, 75, -59, 97, -67, 124.766, -58.3761, 137.843, -35.6125, 142.687, -8.49004, 133, 19, 104, 53, 75, 78, 44, 100, 12, 72, -7, 48, -28, 23, -37, -4, -31, -32)
+polygon = PackedVector2Array(17.6414, -42.4999, 46.5093, -47.3112, 69.7639, -47.3112, 84.1978, -43.3018, 110.66, -29.6697, 142.687, -8.49004, 128.302, 27.2641, 102.641, 63.3489, 44, 100, -4.00946, 56.9338, -24.8585, 28.066, -37, -4, -12.8302, -29.6697)
 
 [node name="Heart2" type="Polygon2D" parent="BacupPolygons"]
 position = Vector2(151, 126)
 scale = Vector2(0.703038, 0.703038)
+color = Color(1, 1, 1, 0.176471)
+polygon = PackedVector2Array(-15, -60, 13, -70, 37, -59, 56, -32, 75, -59, 97, -67, 124.766, -58.3761, 137.843, -35.6125, 142.687, -8.49004, 133, 19, 104, 53, 75, 78, 44, 100, 12, 72, -7, 48, -28, 23, -37, -4, -31, -32)
+
+[node name="Heart3" type="Polygon2D" parent="BacupPolygons"]
+position = Vector2(89, 342)
+scale = Vector2(0.494263, 0.494263)
 color = Color(1, 1, 1, 0.176471)
 polygon = PackedVector2Array(-15, -60, 13, -70, 37, -59, 56, -32, 75, -59, 97, -67, 124.766, -58.3761, 137.843, -35.6125, 142.687, -8.49004, 133, 19, 104, 53, 75, 78, 44, 100, 12, 72, -7, 48, -28, 23, -37, -4, -31, -32)
 
@@ -50,12 +53,8 @@ scale = Vector2(1.24706, 1.24706)
 color = Color(1, 1, 1, 0.176471)
 polygon = PackedVector2Array(-15, -60, 13, -70, 37, -59, 56, -32, 75, -59, 97, -67, 124.766, -58.3761, 137.843, -35.6125, 142.687, -8.49004, 133, 19, 104, 53, 75, 78, 44, 100, 12, 72, -7, 48, -28, 23, -37, -4, -31, -32)
 
-[node name="Diamond" type="Polygon2D" parent="BacupPolygons"]
-position = Vector2(766, 230)
-scale = Vector2(1.24706, 1.24706)
-color = Color(1, 1, 1, 0.176471)
-polygon = PackedVector2Array(17.6414, -42.4999, 46.5093, -47.3112, 69.7639, -47.3112, 84.1978, -43.3018, 110.66, -29.6697, 142.687, -8.49004, 128.302, 27.2641, 102.641, 63.3489, 44, 100, -4.00946, 56.9338, -24.8585, 28.066, -37, -4, -12.8302, -29.6697)
-
 [node name="Polygons" type="Node2D" parent="."]
+
+[node name="ShapeSpawner" parent="." instance=ExtResource("2_mkbhh")]
 
 [connection signal="_on_item_selected" from="ShapeSpawner" to="." method="_on_shape_spawner__on_item_selected"]

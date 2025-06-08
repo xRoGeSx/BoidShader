@@ -287,9 +287,9 @@ void main() {
     float vel_magnitude = clamp(length(velocity), min_vel, max_vel);
     velocity = vel_magnitude * normalize(velocity);
 
-    if(distance(position, target) < 325.0) {
-        velocity += normalize(target - position) * 50.0;
-    }
+    // if(distance(position, target) < 325.0) {
+    //     velocity += normalize(target - position) * 50.0;
+    // }
 
     position += velocity * delta;
 

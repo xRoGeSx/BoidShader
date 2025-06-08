@@ -10,7 +10,6 @@ var rd := RenderingServer.get_rendering_device()
 @onready var polygons = $Polygons
 
 
-
 var run_boids_shader_file := load("res://src/run_boids.glsl")
 var run_boids_shader_spirv: RDShaderSPIRV = run_boids_shader_file.get_spirv()
 var run_boids_shader := rd.shader_create_from_spirv(run_boids_shader_spirv)
@@ -162,12 +161,19 @@ func createUniformFromBuffer(
 	return uniform_
 
 
-func arrayToPackedBytes(array) -> PackedByteArray:
+func floatArrayToPackedBytes(array) -> PackedByteArray:
 	var input_ := PackedFloat32Array(array)
 	return input_.to_byte_array()
+func intArrayToPackedBytes(array) -> PackedByteArray:
+	var input_ := PackedInt32Array(array)
+	return input_.to_byte_array()
+func  vec2ArrayToPackedBytes(array) -> PackedByteArray:
+	var input_ := PackedVector2Array(array)
+	return input_.to_byte_array()
+
 
 func createBufferFromArray(array: Array[int]):
-	var input_bytes = arrayToPackedBytes(array)
+	var input_bytes = floatArrayToPackedBytes(array)
 	var buffer_ := rd.storage_buffer_create(input_bytes.size(), input_bytes)
 	return buffer_
 	
@@ -190,8 +196,32 @@ func generate_parameter_buffer(delta):
 	
 
 func updateParamBuffer(buffer_: RID, delta: float):
-	var updatedBuffer = arrayToPackedBytes(generate_parameter_buffer(delta))
+	var updatedBuffer = floatArrayToPackedBytes(generate_parameter_buffer(delta))
 	return rd.buffer_update(buffer_, 0, updatedBuffer.size(), updatedBuffer)
+	
+func generate_polygon_buffers():
+	var lookup: Array[int] = [];
+	var verticies: Array[Vector2] = [];
+	lookup.resize(MAX_POLYGON_VERTICES)
+	verticies.resize(MAX_POLYGON_VERTICES)
+	var verticiesPassed = 0;
+	var polyIndex = 0;
+	for poly in polygons.get_children():
+		for i in poly.polygon.size():
+			verticies[verticiesPassed] = (poly.polygon[i] * poly.scale) + poly.position;
+			verticiesPassed += 1;
+		lookup[polyIndex] = poly.polygon.size() if polyIndex == 0 else lookup[polyIndex - 1] + poly.polygon.size();
+		polyIndex += 1;
+	return [verticies, lookup]
+
+
+func updatePolygonBuffers():
+	var g = generate_polygon_buffers()
+	var verticies = vec2ArrayToPackedBytes(g[0]);
+	var lookup = intArrayToPackedBytes(g[1])
+	
+	rd.buffer_update(polygon_vertex_buffer, 0, verticies.size(), verticies)
+	rd.buffer_update(polygon_vertex_lookup_buffer, 0, lookup.size(), lookup)
 
 
 func addValueToBuffer(buffer_: RID, value: Vector2):
@@ -204,7 +234,7 @@ func addValueToBuffer(buffer_: RID, value: Vector2):
 	array.insert(firstEmptyValueIndex, value.x)
 	array.insert(firstEmptyValueIndex + 1, value.y)
 
-	var packedBytes = arrayToPackedBytes(array)
+	var packedBytes = floatArrayToPackedBytes(array)
 	rd.buffer_update(buffer_, 0, packedBytes.size(), packedBytes)
 
 func removeLastValueFromBuffer(buffer_: RID):
@@ -219,14 +249,14 @@ func removeLastValueFromBuffer(buffer_: RID):
 
 	array.set(firstEmptyValueIndex - 1, -1)
 	array.set(firstEmptyValueIndex - 2, -1)
-	var packedBytes = arrayToPackedBytes(array)
+	var packedBytes = floatArrayToPackedBytes(array)
 	rd.buffer_update(buffer_, 0, packedBytes.size(), packedBytes)
 
 func replaceValueInBuffer(buffer_: RID, index: int, value: int):
 	var array = rd.buffer_get_data(buffer_).to_float32_array()
 	array.remove_at(index)
 	array.insert(index, value)
-	var packedBytes = arrayToPackedBytes(array)
+	var packedBytes = floatArrayToPackedBytes(array)
 	rd.buffer_update(buffer_, 0, packedBytes.size(), packedBytes)
 
 
@@ -352,28 +382,28 @@ func lineIntersect(a, b, c, d):
 	return a + t * r;
 
 func rotateVector(along: Vector2, vector: Vector2, degrees: float):
-	var originPosition = vector -  along;
+	var originPosition = vector - along;
 	var x2 = cos(degrees) * originPosition.x - sin(degrees) * originPosition.y;
-	var y2 = sin(degrees)  *  originPosition.x  + cos(degrees)  * originPosition.y
-	return Vector2(x2,  y2) + along
+	var y2 = sin(degrees) * originPosition.x + cos(degrees) * originPosition.y
+	return Vector2(x2, y2) + along
 
 func drawPolygonIntersection():
-	var polygon =  polygons.get_children()[0]
+	var polygon = polygons.get_children()[0]
 	var end = get_global_mouse_position()
-	var   start = polygon.position;
+	var start = polygon.position;
 	draw_line(start, end, Color.RED, 1, true)
-	var arc = PI /  8;
-	draw_line(start, rotateVector(start, end, arc ), Color.RED, 1, true)
-	draw_line(start, rotateVector(start, end, -arc ), Color.RED, 1, true)
+	var arc = PI / 8;
+	draw_line(start, rotateVector(start, end, arc), Color.RED, 1, true)
+	draw_line(start, rotateVector(start, end, -arc), Color.RED, 1, true)
 	var size = initial_lookup[0];
 	for index in size:
 		var cur = initial_verticies[index];
 		var next = initial_verticies[0 if index == size - 1 else index + 1]
 		
 		
-		var intersection = raycast2(cur, next, start, end )
-		var intersection2 = raycast2(cur, next, start,  rotateVector(start, end, arc ) )
-		var intersection3 = raycast2(cur, next, start, rotateVector(start, end, -arc ) )
+		var intersection = raycast2(cur, next, start, end)
+		var intersection2 = raycast2(cur, next, start, rotateVector(start, end, arc))
+		var intersection3 = raycast2(cur, next, start, rotateVector(start, end, -arc))
 		draw_line(cur, next, Color.RED, 1, true)
 		if (intersection):
 			draw_circle(intersection, 4.0, Color.BLUE)
@@ -398,7 +428,7 @@ func _draw():
 			draw_string(ThemeDB.fallback_font, Vector2(x * bin_size + 12, y * bin_size + 22), str(x + y * bin_amount_horizontal))
 
 
-func logArrayAsTable(array: Array[PackedInt32Array], name: String):
+func logArrayAsTable(array: Array[PackedInt32Array], name: String): 
 	if (name): print(name)
 	for i in bin_amount_vertical:
 		var row = [];
@@ -416,6 +446,7 @@ func _process(delta):
 	get_window().title = " / Boids: " + str(LIST_SIZE) + " / FPS: " + str(Engine.get_frames_per_second())
 
 	updateParamBuffer(param_buffer, delta)
+	updatePolygonBuffers()
 	
 	removeLastValueFromBuffer(target_buffer)
 	addValueToBuffer(target_buffer, get_global_mouse_position())
@@ -437,11 +468,12 @@ func _process(delta):
 
 
 	_run_compute_shader(pipeline_process_polygons)
+	
 
-	#var poly = rd.buffer_get_data(polygon_vertex_lookup_buffer).to_int32_array();
-	#var polyv = getVec2ArrayFromShader(polygon_vertex_buffer);
-	#print(poly)
+	var poly = rd.buffer_get_data(polygon_vertex_lookup_buffer).to_int32_array();
+	var polyv = getVec2ArrayFromShader(polygon_vertex_buffer);
 	#print(polyv)
+	#print(poly)
 
 	
 func _run_compute_shader(pipeline):
@@ -451,6 +483,10 @@ func _run_compute_shader(pipeline):
 	rd.compute_list_bind_uniform_set(compute_list, shared_polygon_uniform, 1)
 	rd.compute_list_dispatch(compute_list, round(LIST_SIZE / 1024 + 1), 1, 1)
 	rd.compute_list_end()
+	
+
+	
+	
 
 
 func addBoid(position: Vector2):
@@ -509,12 +545,6 @@ func _ready():
 	print(initial_lookup)
 	print(initial_verticies)
 	
-	#for i in MAX_POLYGON_VERTICES:
-		#initial_verticies[i] = Vector2(-1, -1)
-		#if (i < polygon.polygon.size()):
-			#initial_verticies[i] = (polygon.polygon[i] * polygon.scale) + polygon.position;
-		#initial_lookup[i] = -1;
-	#initial_lookup[0] = polygon.polygon.size();
 
 	
 	boid_data_texture_rd = $BoidParticle.process_material.get_shader_parameter("boid_data")
@@ -525,4 +555,5 @@ func _on_shape_spawner__on_item_selected(polygon: Polygon2D):
 	polygon.position = get_global_mouse_position()
 	polygon.show()
 	polygons.add_child(polygon.duplicate())
+	updatePolygonBuffers()
 	pass # Replace with function body.
