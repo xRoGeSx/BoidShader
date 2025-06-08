@@ -30,20 +30,27 @@ float DistToLine(vec2 edgeStart, vec2 edgeEnd, vec2 point) {
     return abs(dot(normalize(perpDir), dirToedgeStart));
 }
 
-vec2 raycast(vec2 a1, vec2 a2, vec2 b1, vec2 b2) {
-    float denominator = ((b2.y - b1.y) * (a2.x - a1.x)) - ((b2.x - b1.x) * (a2.y - a1.y));
-    if(denominator == 0)
-        return vec2(0, 0);
-
-    float ua = (((b2.x - b1.x) * (a1.y - b1.y)) - ((b2.y - b1.y) * (a1.x - b1.x))) / denominator;
-    float ub = (((a2.x - a1.x) * (a1.y - b1.y)) - ((a2.y - a1.y) * (a1.x - b1.x))) / denominator;
-
-    float x = a1.x + ua * (a2.x - a1.x);
-    float y = a1.y + ub * (a2.y - a1.y);
-
-    return vec2(x, y);
+vec2 rotateVector(vec2 along, vec2 vector, float degrees) {
+    vec2 originPosition = vector - along;
+    float x2 = cos(degrees) * originPosition.x - sin(degrees) * originPosition.y;
+    float y2 = sin(degrees) * originPosition.x + cos(degrees) * originPosition.y;
+    return vec2(x2, y2) + along;
 }
 
+vec2 raycast(vec2 a, vec2 b, vec2 c, vec2 d) {
+    vec2 r = b - a;
+    vec2 s = d - c;
+
+    float d_ = r.x * s.y - r.y * s.x;
+    float u_ = ((c.x - a.x) * r.y - (c.y - a.y) * r.x) / d_;
+    float t_ = ((c.x - a.x) * s.y - (c.y - a.y) * s.x) / d_;
+
+    if(u_ <= 0 || u_ >= 1)
+        return vec2(0, 0);
+    if(t_ <= 0 || t_ >= 1)
+        return vec2(0, 02);
+    return a + t_ * r;
+}
 int getBinIndex(vec2 position) {
     float width = parameters.data[9];
 
@@ -151,8 +158,14 @@ vec4 processPolygonCollision(int polygon_index, int boid_index, inout int detect
     vec2 initialVelocity = velocity;
     vec2 polygonCenter = vec2(0, 0);
     int verticies = 0;
+    float ATTRACTION_RANGE = 40.0;
+    float EDGE_AVOIDANCE_RANGE = 7.0;
+    int VISION_RESOLUTION = 20;
+    float VISION_ANGLE = M_PI / 3;
+    int start = polygon_index == 0 ? 0 : polygonVerticiesLookup.data[polygon_index - 1];
+    int end = polygonVerticiesLookup.data[polygon_index];
 
-    for(int i = 0; i < polygonVerticiesLookup.data[polygon_index]; i++) {
+    for(int i = start; i < end; i++) {
         verticies++;
         polygonCenter += polygonVerticies.data[i];
         continue;
@@ -160,48 +173,48 @@ vec4 processPolygonCollision(int polygon_index, int boid_index, inout int detect
     polygonCenter /= verticies;
 
     float separation_factor_mod = 1.0;
-    if(distance(polygonCenter, position) < 200) {
 
-        /* Point is in polygon attraction  range */
-        /* Check if the point is inside polygon */
-        int numberOfIntersections = 0;
-        int currentPolygon = polygonVerticiesLookup.data[polygon_index];
-        for(int i = 0; i < currentPolygon; i++) {
-            vec2 ray = position;
-            vec2 edgeStart = polygonVerticies.data[i];
-            vec2 edgeEnd = polygonVerticies.data[i == currentPolygon - 1 ? 0 : i + 1];
+    float closestEdge = 9999.9;
+    vec2 closestEdgeDirection = vec2(0, 0);
+    int numberOfIntersections = 0;
 
-            if(ray.y > edgeStart.y && ray.y > edgeEnd.y)
-                continue;
-            if(ray.y < edgeStart.y && ray.y < edgeEnd.y)
-                continue;
-            if(ray.x < edgeStart.x + ((ray.y - edgeStart.y) / (edgeEnd.y - edgeStart.y)) * (edgeEnd.x - edgeStart.x))
-                numberOfIntersections++;
-            continue;
-        }
-        if(numberOfIntersections % 2 != 0) {
-            separation_factor_mod *= 4;
-            velocity += normalize(polygonCenter - position) * -.5;
-            for(int i = 0; i < currentPolygon; i++) {
-                vec2 ray = position;
-                vec2 rayEnd = position + velocity * 100;
-                vec2 edgeStart = polygonVerticies.data[i];
-                vec2 edgeEnd = polygonVerticies.data[i == currentPolygon - 1 ? 0 : i + 1];
-                vec2 intersection = raycast(edgeStart, edgeEnd, ray, rayEnd);
-                float distanceToEdge = length(position - intersection);
-                if(distanceToEdge < 20) {
-                    detection_type = 5;
-                    velocity += normalize(position - intersection) * 50.0;
-                } else {
+    float step = VISION_ANGLE / VISION_RESOLUTION;
 
-                }
-                continue;
+    for(int i = start; i < end; i++) {
+        vec2 ray = position;
+        vec2 rayEnd = position + velocity * ATTRACTION_RANGE;
+        vec2 edgeStart = polygonVerticies.data[i];
+        vec2 edgeEnd = polygonVerticies.data[i == end - 1 ? start : i + 1];
+        for(int angleStep = -VISION_RESOLUTION / 2; angleStep < VISION_RESOLUTION / 2; angleStep++) {
+            vec2 intersection = raycast(edgeStart, edgeEnd, ray, rotateVector(ray, rayEnd, angleStep * step));
+            float distanceToEdge = length(intersection - position);
+            if(closestEdge > distanceToEdge) {
+                closestEdge = distanceToEdge;
+                closestEdgeDirection = intersection - position;
             }
-
-        /* Is inside polygon */
-        } else {
-            velocity += normalize(polygonCenter - position) * 30.0;
         }
+
+        if(ray.y > edgeStart.y && ray.y > edgeEnd.y)
+            continue;
+        if(ray.y < edgeStart.y && ray.y < edgeEnd.y)
+            continue;
+        if(ray.x < edgeStart.x + ((ray.y - edgeStart.y) / (edgeEnd.y - edgeStart.y)) * (edgeEnd.x - edgeStart.x))
+            numberOfIntersections++;
+        continue;
+
+    }
+
+    bool inside = numberOfIntersections % 2 != 0;
+    /* TODO: this need */
+    if(inside) {
+        separation_factor_mod *= 5;
+        velocity += normalize(polygonCenter - position) * -.5;
+        if(closestEdge < EDGE_AVOIDANCE_RANGE) {
+            detection_type = int(distance(polygonCenter, position));
+            velocity += normalize(closestEdgeDirection) * -150.0;
+        }
+    } else if(closestEdge < ATTRACTION_RANGE) {
+        velocity += normalize(closestEdgeDirection) * 30.0;
     }
     vec2 modVelocity = velocity - initialVelocity;
     return vec4(modVelocity.x, modVelocity.y, separation_factor_mod, 0.0);
@@ -244,7 +257,15 @@ void main() {
     }
 
     vec2[4] boidCollisionResult = vec2[](vec2(0, 0), vec2(0, 0), vec2(0, 0), vec2(0, 0));
-    vec4 polygonCollisionResult = processPolygonCollision(0, int(my_index), detection_type);
+
+    for(int polygonIndex = 0; polygonIndex < polygonVerticiesLookup.data.length(); polygonIndex++) {
+        if(polygonVerticiesLookup.data[polygonIndex] == 0)
+            break;
+        vec4 polygonCollisionResult = processPolygonCollision(polygonIndex, int(my_index), detection_type);
+        velocity += polygonCollisionResult.xy;
+        separation_factor *= polygonCollisionResult.z;
+    }
+
     processBoidCollision(int(my_index), boidCollisionResult);
 
     vec2 cohesion = boidCollisionResult[0];
@@ -253,9 +274,6 @@ void main() {
 
     int friends = int(boidCollisionResult[3].x);
     int avoids = int(boidCollisionResult[3].y);
-
-    velocity += polygonCollisionResult.xy;
-    separation_factor *= polygonCollisionResult.z;
 
     if(friends > 0) {
         velocity += normalize(alignment / friends) * alignment_factor;

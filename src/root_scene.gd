@@ -2,12 +2,13 @@ extends Node2D
 
 
 const LIST_SIZE = 50000;
-const MAX_POLYGON_VERTICES = 50;
+const MAX_POLYGON_VERTICES = 100;
 
 var rd := RenderingServer.get_rendering_device()
 @onready var moving_boxes = $MovingBoxes
 @onready var particle: GPUParticles2D = $BoidParticle
 @onready var polygon = $Polygon2D
+@onready var polygons = $Polygons
 
 const box = preload("res://src/Box/Box.tscn")
 
@@ -320,7 +321,83 @@ func setupComputeShader():
 	pass
 
 
+func raycast(a1: Vector2, a2: Vector2, b1: Vector2, b2: Vector2):
+	var x1: float = a1.x
+	var x2: float = a2.x
+	var x3: float = b1.x
+	var x4: float = b2.x
+	var y1: float = a1.y
+	var y2: float = a2.y
+	var y3: float = b1.y
+	var y4: float = b2.y
+
+	var denominator = ((y4 - y3) * (x2 - x1)) - ((x4 - x3) * (y2 - y1))
+	if (denominator == 0): return ;
+
+	var ua = (((x4 - x3) * (y1 - y3)) - ((y4 - y3) * (x1 - x3))) / denominator
+	var ub = (((x2 - x1) * (y1 - y3)) - ((y2 - y1) * (x1 - x3))) / denominator
+
+	var x = x1 + ua * (x2 - x1)
+	var y = y1 + ub * (y2 - y1)
+
+	return Vector2(x, y)
+
+
+func raycast2(a: Vector2, b: Vector2, c: Vector2, d: Vector2):
+	var r = b - a;
+	var s = d - c;
+
+	var d_ = r.x * s.y - r.y * s.x;
+	var u_ = ((c.x - a.x) * r.y - (c.y - a.y) * r.x) / d_;
+	var t_ = ((c.x - a.x) * s.y - (c.y - a.y) * s.x) / d_;
+
+	if (u_ <= 0 || u_ >= 1): return ;
+	if (t_ <= 0 || t_ >= 1): return ;
+	return a + t_ * r
+	
+func lineIntersect(a, b, c, d):
+	var r = b - a;
+	var s = d - c;
+	var d_ = r.x * s.y - r.y * s.x;
+	var u = ((c.x - a.x) * r.y - (c.y - a.y) * r.x) / d_;
+	var t = ((c.x - a.x) * s.y - (c.y - a.y) * s.x) / d_;
+	if (0 <= u && u <= 1 && 0 <= t && t <= 1): return ;
+	return a + t * r;
+
+func rotateVector(along: Vector2, vector: Vector2, degrees: float):
+	var originPosition = vector -  along;
+	var x2 = cos(degrees) * originPosition.x - sin(degrees) * originPosition.y;
+	var y2 = sin(degrees)  *  originPosition.x  + cos(degrees)  * originPosition.y
+	return Vector2(x2,  y2) + along
+
+func drawPolygonIntersection():
+	var polygon =  polygons.get_children()[0]
+	var end = get_global_mouse_position()
+	var   start = polygon.position;
+	draw_line(start, end, Color.RED, 1, true)
+	var arc = PI /  8;
+	draw_line(start, rotateVector(start, end, arc ), Color.RED, 1, true)
+	draw_line(start, rotateVector(start, end, -arc ), Color.RED, 1, true)
+	var size = initial_lookup[0];
+	for index in size:
+		var cur = initial_verticies[index];
+		var next = initial_verticies[0 if index == size - 1 else index + 1]
+		
+		
+		var intersection = raycast2(cur, next, start, end )
+		var intersection2 = raycast2(cur, next, start,  rotateVector(start, end, arc ) )
+		var intersection3 = raycast2(cur, next, start, rotateVector(start, end, -arc ) )
+		draw_line(cur, next, Color.RED, 1, true)
+		if (intersection):
+			draw_circle(intersection, 4.0, Color.BLUE)
+		if (intersection2):
+			draw_circle(intersection2, 4.0, Color.BLUE)
+		if (intersection3):
+			draw_circle(intersection3, 4.0, Color.BLUE)
+		
+
 func _draw():
+	#drawPolygonIntersection()
 	if (!RENDER_BIN): return ;
 	for x in bin_amount_horizontal:
 		for y in bin_amount_vertical:
@@ -345,6 +422,7 @@ func logArrayAsTable(array: Array[PackedInt32Array], name: String):
 			
 
 func _process(delta):
+	queue_redraw()
 	bin_amount_horizontal = ceil(get_viewport_rect().size.x / bin_size)
 	bin_amount_vertical = ceil(get_viewport_rect().size.y / bin_size)
 	
@@ -354,13 +432,16 @@ func _process(delta):
 	
 	removeLastValueFromBuffer(target_buffer)
 	addValueToBuffer(target_buffer, get_global_mouse_position())
-	
+	if (Input.is_key_pressed(KEY_W)):
+		remove_child(polygon)
+		removeLastValueFromBuffer(polygon_vertex_lookup_buffer)
+
 	if (Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)):
 		for num in 10:
 			addBoid(get_viewport().get_mouse_position())
 	if (Input.is_key_pressed(KEY_Q)):
 		return ;
-
+	
 	_run_compute_shader(pipeline_generate_bin)
 	_run_compute_shader(pipeline_generate_bin_sum)
 	_run_compute_shader(pipeline_generate_bin_lookup)
@@ -443,14 +524,25 @@ func _ready():
 	
 	bin_amount_horizontal = ceil(get_viewport_rect().size.x / bin_size)
 	bin_amount_vertical = ceil(get_viewport_rect().size.y / bin_size)
-
 	
-	for i in MAX_POLYGON_VERTICES:
-		initial_verticies[i] = Vector2(-1, -1)
-		if (i < polygon.polygon.size()):
-			initial_verticies[i] = (polygon.polygon[i] * polygon.scale) + polygon.position;
-		initial_lookup[i] = -1;
-	initial_lookup[0] = polygon.polygon.size();
+	var verticiesPassed = 0;
+	var polyIndex = 0;
+	for poly in polygons.get_children():
+		for i in poly.polygon.size():
+			initial_verticies[verticiesPassed] = (poly.polygon[i] * poly.scale) + poly.position;
+			verticiesPassed += 1;
+		initial_lookup[polyIndex] = poly.polygon.size() if polyIndex == 0 else initial_lookup[polyIndex - 1] + poly.polygon.size();
+		polyIndex += 1;
+		
+	print(initial_lookup)
+	print(initial_verticies)
+	
+	#for i in MAX_POLYGON_VERTICES:
+		#initial_verticies[i] = Vector2(-1, -1)
+		#if (i < polygon.polygon.size()):
+			#initial_verticies[i] = (polygon.polygon[i] * polygon.scale) + polygon.position;
+		#initial_lookup[i] = -1;
+	#initial_lookup[0] = polygon.polygon.size();
 
 	
 	boid_data_texture_rd = $BoidParticle.process_material.get_shader_parameter("boid_data")

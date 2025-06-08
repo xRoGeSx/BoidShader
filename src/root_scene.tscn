@@ -5,15 +5,15 @@
 
 [node name="RootScene" type="Node2D"]
 script = ExtResource("1_xc3cs")
-friend_radius = 10.09
-avoid_radius = 7.073
-min_vel = 25.564
-max_vel = 78.956
-alignment_factor = 13.341
-cohesion_factor = 14.199
-separation_factor = 28.573
+friend_radius = 10.807
+avoid_radius = 7.825
+min_vel = 27.068
+max_vel = 112.825
+alignment_factor = 30.634
+cohesion_factor = 17.959
+separation_factor = 20.303
 RENDER_BIN = false
-bin_size = 32
+bin_size = 23
 
 [node name="BoidParticle" parent="." instance=ExtResource("2_hgj33")]
 
@@ -35,11 +35,38 @@ text = "REMOVE"
 
 [node name="MovingBoxes" type="Node" parent="."]
 
-[node name="Polygon2D" type="Polygon2D" parent="."]
-position = Vector2(359.424, 294.882)
-scale = Vector2(1.84118, 1.84118)
+[node name="Polygons" type="Node2D" parent="."]
+visible = false
+
+[node name="Heart3" type="Polygon2D" parent="Polygons"]
+position = Vector2(89, 342)
+scale = Vector2(0.494263, 0.494263)
 color = Color(1, 1, 1, 0.176471)
 polygon = PackedVector2Array(-15, -60, 13, -70, 37, -59, 56, -32, 75, -59, 97, -67, 124.766, -58.3761, 137.843, -35.6125, 142.687, -8.49004, 133, 19, 104, 53, 75, 78, 44, 100, 12, 72, -7, 48, -28, 23, -37, -4, -31, -32)
+
+[node name="Heart2" type="Polygon2D" parent="Polygons"]
+position = Vector2(151, 126)
+scale = Vector2(0.703038, 0.703038)
+color = Color(1, 1, 1, 0.176471)
+polygon = PackedVector2Array(-15, -60, 13, -70, 37, -59, 56, -32, 75, -59, 97, -67, 124.766, -58.3761, 137.843, -35.6125, 142.687, -8.49004, 133, 19, 104, 53, 75, 78, 44, 100, 12, 72, -7, 48, -28, 23, -37, -4, -31, -32)
+
+[node name="Diamond2" type="Polygon2D" parent="Polygons"]
+position = Vector2(606, 519)
+scale = Vector2(0.940298, 0.908659)
+color = Color(1, 1, 1, 0.176471)
+polygon = PackedVector2Array(23.1309, -16.4699, 41.2103, -44.1207, 63.5436, -44.1207, 89.0674, -16.4699, 115.655, -6.89844, 144.369, 0.545959, 144.369, 27.1333, 90.1309, 30.3238, 55.0356, 97.3238, 17.8134, 29.2603, -35.3612, 26.0698, -37, -4, -6.64691, -10.0889)
+
+[node name="Heart" type="Polygon2D" parent="Polygons"]
+position = Vector2(441, 250)
+scale = Vector2(1.24706, 1.24706)
+color = Color(1, 1, 1, 0.176471)
+polygon = PackedVector2Array(-15, -60, 13, -70, 37, -59, 56, -32, 75, -59, 97, -67, 124.766, -58.3761, 137.843, -35.6125, 142.687, -8.49004, 133, 19, 104, 53, 75, 78, 44, 100, 12, 72, -7, 48, -28, 23, -37, -4, -31, -32)
+
+[node name="Diamond" type="Polygon2D" parent="Polygons"]
+position = Vector2(766, 230)
+scale = Vector2(1.24706, 1.24706)
+color = Color(1, 1, 1, 0.176471)
+polygon = PackedVector2Array(17.6414, -42.4999, 46.5093, -47.3112, 69.7639, -47.3112, 84.1978, -43.3018, 110.66, -29.6697, 142.687, -8.49004, 128.302, 27.2641, 102.641, 63.3489, 44, 100, -4.00946, 56.9338, -24.8585, 28.066, -37, -4, -12.8302, -29.6697)
 
 [connection signal="pressed" from="AddButton" to="." method="_on_add_button_pressed"]
 [connection signal="pressed" from="RemoveButton" to="." method="_on_remove_button_pressed"]

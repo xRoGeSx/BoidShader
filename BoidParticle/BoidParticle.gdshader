@@ -33,8 +33,12 @@ void process() {
 		COLOR = vec4(0,1.0,0,1);
 	} else if (boid_pos_rot.a == 5.0) {
 		COLOR = vec4(0,0,1,1);		
+	} else if(boid_pos_rot.a > 5.0) {
+		float color = boid_pos_rot.a / 200.0;
+		COLOR = vec4(0,color,0,1);
 	} else {
-		COLOR = vec4(255,255,255,1);
+		COLOR = vec4(1,1,1,1);
+		
 	}
 
 }
