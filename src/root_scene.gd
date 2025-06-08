@@ -5,12 +5,10 @@ const LIST_SIZE = 50000;
 const MAX_POLYGON_VERTICES = 100;
 
 var rd := RenderingServer.get_rendering_device()
-@onready var moving_boxes = $MovingBoxes
 @onready var particle: GPUParticles2D = $BoidParticle
 @onready var polygon = $Polygon2D
 @onready var polygons = $Polygons
 
-const box = preload("res://src/Box/Box.tscn")
 
 
 var run_boids_shader_file := load("res://src/run_boids.glsl")
@@ -173,17 +171,6 @@ func createBufferFromArray(array: Array[int]):
 	var buffer_ := rd.storage_buffer_create(input_bytes.size(), input_bytes)
 	return buffer_
 	
-func addBox():
-	var size = moving_boxes.get_child_count();
-	if size >= LIST_SIZE: return ;
-	moving_boxes.add_child(box.instantiate())
-	
-func removeLastBox():
-	var size = moving_boxes.get_child_count();
-	if size == 0: return
-	var lastChild = moving_boxes.get_child(size - 1);
-	lastChild.queue_free()
-	moving_boxes.remove_child(lastChild)
 
 func generate_parameter_buffer(delta):
 	return [
@@ -465,25 +452,10 @@ func _run_compute_shader(pipeline):
 	rd.compute_list_dispatch(compute_list, round(LIST_SIZE / 1024 + 1), 1, 1)
 	rd.compute_list_end()
 
-	
-func _on_add_button_pressed():
-	addBox()
-	addValueToBuffer(velocity_buffer, Vector2(1, 1))
-	addValueToBuffer(position_buffer, Vector2(1, 1))
-	pass # Replace with function body.
 
 func addBoid(position: Vector2):
 	addValueToBuffer(velocity_buffer, Vector2(1, 1))
 	addValueToBuffer(position_buffer, position)
-
-
-func _on_remove_button_pressed():
-	removeLastBox()
-	removeLastValueFromBuffer(velocity_buffer)
-	removeLastValueFromBuffer(position_buffer)
-
-	pass # Replace with function body.
-
 
 func getBinAmount():
 	var x = get_viewport_rect().size.x
@@ -547,3 +519,10 @@ func _ready():
 	
 	boid_data_texture_rd = $BoidParticle.process_material.get_shader_parameter("boid_data")
 	RenderingServer.call_on_render_thread(setupComputeShader)
+
+
+func _on_shape_spawner__on_item_selected(polygon: Polygon2D):
+	polygon.position = get_global_mouse_position()
+	polygon.show()
+	polygons.add_child(polygon.duplicate())
+	pass # Replace with function body.
