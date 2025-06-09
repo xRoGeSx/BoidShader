@@ -160,8 +160,8 @@ vec4 processPolygonCollision(int polygon_index, int boid_index, inout int detect
     int verticies = 0;
     float ATTRACTION_RANGE = 40.0;
     float EDGE_AVOIDANCE_RANGE = 7.0;
-    int VISION_RESOLUTION = 20;
-    float VISION_ANGLE = M_PI / 3;
+    int VISION_RESOLUTION = 60;
+    float VISION_ANGLE = M_PI;
     int start = polygon_index == 0 ? 0 : polygonVerticiesLookup.data[polygon_index - 1];
     int end = polygonVerticiesLookup.data[polygon_index];
 
@@ -208,13 +208,13 @@ vec4 processPolygonCollision(int polygon_index, int boid_index, inout int detect
     /* TODO: this need */
     if(inside) {
         separation_factor_mod *= 5;
-        velocity += normalize(polygonCenter - position) * -.5;
+        velocity += normalize(polygonCenter - position) * -10.0;
         if(closestEdge < EDGE_AVOIDANCE_RANGE) {
             detection_type = int(distance(polygonCenter, position));
             velocity += normalize(closestEdgeDirection) * -150.0;
         }
     } else if(closestEdge < ATTRACTION_RANGE) {
-        velocity += normalize(closestEdgeDirection) * 30.0;
+        velocity += normalize(closestEdgeDirection) * 120.0;
     }
     vec2 modVelocity = velocity - initialVelocity;
     return vec4(modVelocity.x, modVelocity.y, separation_factor_mod, 0.0);

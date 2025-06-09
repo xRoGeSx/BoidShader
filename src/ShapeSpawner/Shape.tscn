@@ -1,0 +1,14 @@
+[gd_scene load_steps=2 format=3 uid="uid://tbuv8bapobpg"]
+
+[ext_resource type="Script" path="res://src/ShapeSpawner/Shape.gd" id="1_hpwh5"]
+
+[node name="Shape" type="Polygon2D"]
+script = ExtResource("1_hpwh5")
+
+[node name="Area2D" type="Area2D" parent="."]
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="Area2D"]
+visible = false
+
+[connection signal="mouse_entered" from="Area2D" to="." method="_on_area_2d_mouse_entered"]
+[connection signal="mouse_exited" from="Area2D" to="." method="_on_area_2d_mouse_exited"]

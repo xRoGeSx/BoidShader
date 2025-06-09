@@ -2,7 +2,7 @@ extends Node2D
 
 
 const LIST_SIZE = 50000;
-const MAX_POLYGON_VERTICES = 100;
+const MAX_POLYGON_VERTICES = 200;
 
 var rd := RenderingServer.get_rendering_device()
 @onready var particle: GPUParticles2D = $BoidParticle
@@ -237,6 +237,8 @@ func addValueToBuffer(buffer_: RID, value: Vector2):
 	var packedBytes = floatArrayToPackedBytes(array)
 	rd.buffer_update(buffer_, 0, packedBytes.size(), packedBytes)
 
+
+
 func removeLastValueFromBuffer(buffer_: RID):
 	var array = rd.buffer_get_data(buffer_).to_float32_array()
 	var firstEmptyValueIndex = array.find(-1)
@@ -438,27 +440,13 @@ func logArrayAsTable(array: Array[PackedInt32Array], name: String):
 		print(row)
 			
 
-func _process(delta):
-	queue_redraw()
-	bin_amount_horizontal = ceil(get_viewport_rect().size.x / bin_size)
-	bin_amount_vertical = ceil(get_viewport_rect().size.y / bin_size)
-	
-	get_window().title = " / Boids: " + str(LIST_SIZE) + " / FPS: " + str(Engine.get_frames_per_second())
-
+func _physics_process(delta):
 	updateParamBuffer(param_buffer, delta)
 	updatePolygonBuffers()
 	
 	removeLastValueFromBuffer(target_buffer)
 	addValueToBuffer(target_buffer, get_global_mouse_position())
-	if (Input.is_key_pressed(KEY_W)):
-		remove_child(polygon)
-		removeLastValueFromBuffer(polygon_vertex_lookup_buffer)
 
-	if (Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)):
-		for num in 10:
-			addBoid(get_viewport().get_mouse_position())
-	if (Input.is_key_pressed(KEY_Q)):
-		return ;
 	
 	_run_compute_shader(pipeline_generate_bin)
 	_run_compute_shader(pipeline_generate_bin_sum)
@@ -466,12 +454,29 @@ func _process(delta):
 	_run_compute_shader(pipeline_generate_boid_lookup)
 	_run_compute_shader(pipeline_run_boids)
 
-
 	_run_compute_shader(pipeline_process_polygons)
+
+func _process(delta):
+	queue_redraw()
+	bin_amount_horizontal = ceil(get_viewport_rect().size.x / bin_size)
+	bin_amount_vertical = ceil(get_viewport_rect().size.y / bin_size)
+	
+	get_window().title = " / Boids: " + str(LIST_SIZE) + " / FPS: " + str(Engine.get_frames_per_second())
+	
+	if (Input.is_key_pressed(KEY_W)):
+		remove_child(polygon)
+		removeLastValueFromBuffer(polygon_vertex_lookup_buffer)
+
+	if (Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)):
+		for num in 10:
+			addBoid(get_viewport().get_mouse_position())
+	if (Input.is_key_pressed(KEY_Q)):
+		return ;
+	
 	
 
-	var poly = rd.buffer_get_data(polygon_vertex_lookup_buffer).to_int32_array();
-	var polyv = getVec2ArrayFromShader(polygon_vertex_buffer);
+	#var poly = rd.buffer_get_data(polygon_vertex_lookup_buffer).to_int32_array();
+	#var polyv = getVec2ArrayFromShader(polygon_vertex_buffer);
 	#print(polyv)
 	#print(poly)
 
@@ -553,7 +558,6 @@ func _ready():
 
 func _on_shape_spawner__on_item_selected(polygon: Polygon2D):
 	polygon.position = get_global_mouse_position()
-	polygon.show()
 	polygons.add_child(polygon.duplicate())
 	updatePolygonBuffers()
 	pass # Replace with function body.

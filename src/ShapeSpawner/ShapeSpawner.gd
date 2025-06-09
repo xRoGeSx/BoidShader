@@ -15,6 +15,7 @@ const COTNEXT_MENU_ACTION = "ContextMenu"
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
+	PolygonsNode.hide()
 	polygons = PolygonsNode.get_children() as Array[Polygon2D];
 	for polygon in polygons:
 		List.add_item(polygon.name, null, true)

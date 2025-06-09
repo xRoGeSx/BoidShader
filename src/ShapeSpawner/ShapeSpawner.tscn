@@ -1,30 +1,27 @@
-[gd_scene load_steps=2 format=3 uid="uid://farsqijc4xpn"]
+[gd_scene load_steps=3 format=3 uid="uid://farsqijc4xpn"]
 
 [ext_resource type="Script" path="res://src/ShapeSpawner/ShapeSpawner.gd" id="1_w6c3h"]
+[ext_resource type="PackedScene" uid="uid://tbuv8bapobpg" path="res://src/ShapeSpawner/Shape.tscn" id="2_puodd"]
 
 [node name="ShapeSpawner" type="Node2D"]
 script = ExtResource("1_w6c3h")
 
 [node name="Polygons" type="Node2D" parent="."]
-visible = false
 
-[node name="Tesla" type="Polygon2D" parent="Polygons"]
-visible = false
-position = Vector2(599, 119)
-color = Color(1, 1, 1, 0.176471)
-polygon = PackedVector2Array(23.1309, -16.4699, 41.2103, -44.1207, 63.5436, -44.1207, 89.0674, -16.4699, 115.655, -6.89844, 144.369, 0.545959, 144.369, 27.1333, 90.1309, 30.3238, 55.0356, 97.3238, 17.8134, 29.2603, -35.3612, 26.0698, -37, -4, -6.64691, -10.0889)
-
-[node name="Heart" type="Polygon2D" parent="Polygons"]
-visible = false
-position = Vector2(141, 128)
-color = Color(1, 1, 1, 0.176471)
+[node name="Heart" parent="Polygons" instance=ExtResource("2_puodd")]
+position = Vector2(147, 123)
+color = Color(1, 1, 1, 0.0784314)
 polygon = PackedVector2Array(-15, -60, 13, -70, 37, -59, 56, -32, 75, -59, 97, -67, 124.766, -58.3761, 137.843, -35.6125, 142.687, -8.49004, 133, 19, 104, 53, 75, 78, 44, 100, 12, 72, -7, 48, -28, 23, -37, -4, -31, -32)
 
-[node name="Diamond" type="Polygon2D" parent="Polygons"]
-visible = false
-position = Vector2(363, 111)
-color = Color(1, 1, 1, 0.176471)
-polygon = PackedVector2Array(17.6414, -42.4999, 46.5093, -47.3112, 69.7639, -47.3112, 84.1978, -43.3018, 110.66, -29.6697, 142.687, -8.49004, 128.302, 27.2641, 102.641, 63.3489, 44, 100, -4.00946, 56.9338, -24.8585, 28.066, -37, -4, -12.8302, -29.6697)
+[node name="Diamond" parent="Polygons" instance=ExtResource("2_puodd")]
+position = Vector2(356, 131)
+color = Color(1, 1, 1, 0.0784314)
+polygon = PackedVector2Array(29, -63, 54, -67, 76, -63, 98, -53, 125, -33, 161, 3, 138, 16, 110, 30, 82, 48, 53, 84, 30, 51, 5, 35, -24, 17, -50, -4, -16, -37, 9, -53)
+
+[node name="Tesla" parent="Polygons" instance=ExtResource("2_puodd")]
+position = Vector2(568, 97)
+color = Color(1, 1, 1, 0.0784314)
+polygon = PackedVector2Array(133, 19, 105, 50, 78, 52, 74, 78, 49, 83, 26, 78, 26, 52, -7, 48, -28, 23, -28, 18, 30, 26, 35, -4, 70, -3, 78, 23)
 
 [node name="List" type="ItemList" parent="."]
 clip_contents = false
