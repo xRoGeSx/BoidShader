@@ -20,4 +20,5 @@ void main() {
 
   int my_bin = int(position.x / (bin_size)) + int(position.y / (bin_size)) * int(ceil(width / bin_size));
   bin.data[my_index] = my_bin;
+
 }

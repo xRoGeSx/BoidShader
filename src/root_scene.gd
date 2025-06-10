@@ -5,37 +5,40 @@ const LIST_SIZE = 50000;
 const MAX_POLYGON_VERTICES = 200;
 
 var rd := RenderingServer.get_rendering_device()
+const MOUSE_ACTION = "MouseButtonLeft"
+
 @onready var particle: GPUParticles2D = $BoidParticle
+
 @onready var polygon = $Polygon2D
 @onready var polygons = $Polygons
 
 
-var run_boids_shader_file := load("res://src/run_boids.glsl")
+var run_boids_shader_file := load("res://src/shaders/run_boids.glsl")
 var run_boids_shader_spirv: RDShaderSPIRV = run_boids_shader_file.get_spirv()
 var run_boids_shader := rd.shader_create_from_spirv(run_boids_shader_spirv)
 var pipeline_run_boids := rd.compute_pipeline_create(run_boids_shader)
 
-var generate_bin_shader_file := load("res://src/generate_bin.glsl")
+var generate_bin_shader_file := load("res://src/shaders/generate_bin.glsl")
 var generate_bin_shader_spirv: RDShaderSPIRV = generate_bin_shader_file.get_spirv()
 var generate_bin_shader := rd.shader_create_from_spirv(generate_bin_shader_spirv)
 var pipeline_generate_bin := rd.compute_pipeline_create(generate_bin_shader)
 
-var generate_bin_sum_shader_file := load("res://src/generate_bin_sum.glsl")
+var generate_bin_sum_shader_file := load("res://src/shaders/generate_bin_sum.glsl")
 var generate_bin_sum_shader_spirv: RDShaderSPIRV = generate_bin_sum_shader_file.get_spirv()
 var generate_bin_sum_shader := rd.shader_create_from_spirv(generate_bin_sum_shader_spirv)
 var pipeline_generate_bin_sum := rd.compute_pipeline_create(generate_bin_sum_shader)
 
-var generate_bin_lookup_shader_file := load("res://src/generate_bin_lookup.glsl")
+var generate_bin_lookup_shader_file := load("res://src/shaders/generate_bin_lookup.glsl")
 var generate_bin_lookup_shader_spirv: RDShaderSPIRV = generate_bin_lookup_shader_file.get_spirv()
 var generate_bin_lookup_shader := rd.shader_create_from_spirv(generate_bin_lookup_shader_spirv)
 var pipeline_generate_bin_lookup := rd.compute_pipeline_create(generate_bin_lookup_shader)
 
-var generate_boid_lookup_shader_file := load("res://src/generate_bin_boid_lookup.glsl")
+var generate_boid_lookup_shader_file := load("res://src/shaders/generate_bin_boid_lookup.glsl")
 var generate_boid_lookup_shader_spirv: RDShaderSPIRV = generate_boid_lookup_shader_file.get_spirv()
 var generate_boid_lookup_shader := rd.shader_create_from_spirv(generate_boid_lookup_shader_spirv)
 var pipeline_generate_boid_lookup := rd.compute_pipeline_create(generate_boid_lookup_shader)
 
-var process_polygons_shader_file := load("res://src/process_polygons.glsl")
+var process_polygons_shader_file := load("res://src/shaders/process_polygons.glsl")
 var process_polygons_shader_spirv: RDShaderSPIRV = process_polygons_shader_file.get_spirv()
 var process_polygons_shader := rd.shader_create_from_spirv(process_polygons_shader_spirv)
 var pipeline_process_polygons := rd.compute_pipeline_create(process_polygons_shader)
@@ -76,6 +79,8 @@ var bin_index_lookup_track_uniform: RDUniform
 var bin_boid_index_lookup_buffer: RID
 var bin_boid_index_lookup_uniform: RDUniform
 
+var boid_heatmap_buffer: RID
+var boid_heatmap_uniform: RDUniform
 
 var polygon_vertex_buffer: RID
 var polygon_vertex_uniform: RDUniform
@@ -94,6 +99,8 @@ var binSum: Array[int] = []
 var binLookup: Array[int] = []
 var binLookupTrack: Array[int] = []
 var binIndexBoidLookup: Array[int] = []
+
+var initial_heatmap: Array[int] = []
 
 
 var shared_boid_uniform: RID
@@ -126,7 +133,7 @@ var IMAGE_SIZE = int(ceil((sqrt(LIST_SIZE))));
 var boid_data: Image
 var boid_data_texture: ImageTexture
 var boid_data_texture_rd = Texture2DRD
-
+var shaderFloatRDL: float;
 
 func getVec2ArrayFromShader(buffer: RID) -> Array[Vector2]:
 	var output_bytes := rd.buffer_get_data(buffer)
@@ -167,7 +174,7 @@ func floatArrayToPackedBytes(array) -> PackedByteArray:
 func intArrayToPackedBytes(array) -> PackedByteArray:
 	var input_ := PackedInt32Array(array)
 	return input_.to_byte_array()
-func  vec2ArrayToPackedBytes(array) -> PackedByteArray:
+func vec2ArrayToPackedBytes(array) -> PackedByteArray:
 	var input_ := PackedVector2Array(array)
 	return input_.to_byte_array()
 
@@ -224,19 +231,28 @@ func updatePolygonBuffers():
 	rd.buffer_update(polygon_vertex_lookup_buffer, 0, lookup.size(), lookup)
 
 
-func addValueToBuffer(buffer_: RID, value: Vector2):
+func addValueToBuffer(buffer_: RID, value):
 	var array = rd.buffer_get_data(buffer_).to_float32_array()
 	var firstEmptyValueIndex = array.find(-1)
-
 	if firstEmptyValueIndex == -1: return
-	array.remove_at(firstEmptyValueIndex)
-	array.remove_at(firstEmptyValueIndex)
-	array.insert(firstEmptyValueIndex, value.x)
-	array.insert(firstEmptyValueIndex + 1, value.y)
 
+	if (typeof(value) != TYPE_ARRAY):
+		#print("Add non array")
+		array.remove_at(firstEmptyValueIndex)
+		array.remove_at(firstEmptyValueIndex)
+		array.insert(firstEmptyValueIndex, value.x)
+		array.insert(firstEmptyValueIndex + 1, value.y)
+	if (typeof(value) == TYPE_ARRAY):
+		for element in value:
+			firstEmptyValueIndex = array.find(-1)
+			if firstEmptyValueIndex == -1:
+				break ;
+			array.remove_at(firstEmptyValueIndex)
+			array.remove_at(firstEmptyValueIndex)
+			array.insert(firstEmptyValueIndex, element.x)
+			array.insert(firstEmptyValueIndex + 1, element.y)
 	var packedBytes = floatArrayToPackedBytes(array)
 	rd.buffer_update(buffer_, 0, packedBytes.size(), packedBytes)
-
 
 
 func removeLastValueFromBuffer(buffer_: RID):
@@ -285,9 +301,10 @@ func setupComputeShader():
 	imagemock.fill(255)
 
 	boid_data_buffer = rd.texture_create(fmt, view, boid_data.get_data())
+	
 	boid_data_texture_rd.texture_rd_rid = boid_data_buffer
 	
-
+	
 	position_buffer = vec2ToBuffer(inital_position)
 	velocity_buffer = vec2ToBuffer(initial_velocity)
 	param_buffer = floatToBuffer(params)
@@ -302,6 +319,8 @@ func setupComputeShader():
 	polygon_vertex_buffer = vec2ToBuffer(initial_verticies)
 	polygon_vertex_lookup_buffer = intToBuffer(initial_lookup)
 
+	boid_heatmap_buffer = intToBuffer(initial_heatmap)
+
 
 	position_uniform = createUniformFromBuffer(position_buffer, 0)
 	velocity_uniform = createUniformFromBuffer(velocity_buffer, 1)
@@ -314,6 +333,7 @@ func setupComputeShader():
 	bin_index_lookup_uniform = createUniformFromBuffer(bin_index_lookup_buffer, 8)
 	bin_index_lookup_track_uniform = createUniformFromBuffer(bin_index_lookup_track_buffer, 9)
 	bin_boid_index_lookup_uniform = createUniformFromBuffer(bin_boid_index_lookup_buffer, 10)
+	boid_heatmap_uniform = createUniformFromBuffer(boid_heatmap_buffer, 11)
 
 	polygon_vertex_uniform = createUniformFromBuffer(polygon_vertex_buffer, 0)
 	polygon_vertex_lookup_uniform = createUniformFromBuffer(polygon_vertex_lookup_buffer, 1)
@@ -329,7 +349,8 @@ func setupComputeShader():
 		bin_sum_uniform,
 		bin_index_lookup_uniform,
 		bin_index_lookup_track_uniform,
-		bin_boid_index_lookup_uniform
+		bin_boid_index_lookup_uniform,
+		boid_heatmap_uniform
 	], run_boids_shader, 0)
 
 	shared_polygon_uniform = rd.uniform_set_create([
@@ -390,9 +411,9 @@ func rotateVector(along: Vector2, vector: Vector2, degrees: float):
 	return Vector2(x2, y2) + along
 
 func drawPolygonIntersection():
-	var polygon = polygons.get_children()[0]
+	var _polygon = polygons.get_children()[0]
 	var end = get_global_mouse_position()
-	var start = polygon.position;
+	var start = _polygon.position;
 	draw_line(start, end, Color.RED, 1, true)
 	var arc = PI / 8;
 	draw_line(start, rotateVector(start, end, arc), Color.RED, 1, true)
@@ -430,8 +451,8 @@ func _draw():
 			draw_string(ThemeDB.fallback_font, Vector2(x * bin_size + 12, y * bin_size + 22), str(x + y * bin_amount_horizontal))
 
 
-func logArrayAsTable(array: Array[PackedInt32Array], name: String): 
-	if (name): print(name)
+func logArrayAsTable(array: Array[PackedInt32Array], name_: String):
+	if (name_): print(name_)
 	for i in bin_amount_vertical:
 		var row = [];
 		for j in bin_amount_horizontal:
@@ -445,7 +466,7 @@ func _physics_process(delta):
 	updatePolygonBuffers()
 	
 	removeLastValueFromBuffer(target_buffer)
-	addValueToBuffer(target_buffer, get_global_mouse_position())
+	#addValueToBuffer(target_buffer, get_global_mouse_position())
 
 	
 	_run_compute_shader(pipeline_generate_bin)
@@ -466,16 +487,15 @@ func _process(delta):
 	if (Input.is_key_pressed(KEY_W)):
 		remove_child(polygon)
 		removeLastValueFromBuffer(polygon_vertex_lookup_buffer)
-
-	if (Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)):
-		for num in 10:
-			addBoid(get_viewport().get_mouse_position())
+	if (Input.is_action_pressed((MOUSE_ACTION))):
+		addBoid(get_viewport().get_mouse_position(), 20)
 	if (Input.is_key_pressed(KEY_Q)):
 		return ;
 	
 	
+	var heatmap = rd.buffer_get_data(boid_heatmap_buffer).to_int32_array();
+	$CanvasLayer/ColorRect.material.set_shader_parameter("boid_heatmap", heatmap)
 
-	#var poly = rd.buffer_get_data(polygon_vertex_lookup_buffer).to_int32_array();
 	#var polyv = getVec2ArrayFromShader(polygon_vertex_buffer);
 	#print(polyv)
 	#print(poly)
@@ -490,13 +510,23 @@ func _run_compute_shader(pipeline):
 	rd.compute_list_end()
 	
 
+func addBoid(position_: Vector2, amount: int = 1):
+	if (amount == 1):
+		addValueToBuffer(velocity_buffer, Vector2(1, 1))
+		addValueToBuffer(position_buffer, position_)
+		return ;
+	var positions = []
+	var velocities = []
+	positions.resize(amount)
+	velocities.resize(amount)
+	for i in amount:
+		var modify_position = Vector2(randf_range(0, 20), randf_range(0, 20))
+		var modify_velocity = Vector2(randf_range(0, 20), randf_range(0, 20))
+		positions[i] = position_ + modify_position
+		velocities[i] = modify_velocity;
+	addValueToBuffer(velocity_buffer, velocities)
+	addValueToBuffer(position_buffer, positions)
 	
-	
-
-
-func addBoid(position: Vector2):
-	addValueToBuffer(velocity_buffer, Vector2(1, 1))
-	addValueToBuffer(position_buffer, position)
 
 func getBinAmount():
 	var x = get_viewport_rect().size.x
@@ -534,6 +564,8 @@ func _ready():
 	binIndexBoidLookup.fill(0)
 	initial_lookup.resize(MAX_POLYGON_VERTICES)
 	initial_verticies.resize(MAX_POLYGON_VERTICES)
+	initial_heatmap.resize(LIST_SIZE)
+	initial_heatmap.fill(0)
 	
 	bin_amount_horizontal = ceil(get_viewport_rect().size.x / bin_size)
 	bin_amount_vertical = ceil(get_viewport_rect().size.y / bin_size)
@@ -547,17 +579,14 @@ func _ready():
 		initial_lookup[polyIndex] = poly.polygon.size() if polyIndex == 0 else initial_lookup[polyIndex - 1] + poly.polygon.size();
 		polyIndex += 1;
 		
-	print(initial_lookup)
-	print(initial_verticies)
-	
-
 	
 	boid_data_texture_rd = $BoidParticle.process_material.get_shader_parameter("boid_data")
+	
 	RenderingServer.call_on_render_thread(setupComputeShader)
 
 
-func _on_shape_spawner__on_item_selected(polygon: Polygon2D):
-	polygon.position = get_global_mouse_position()
-	polygons.add_child(polygon.duplicate())
+func _on_shape_spawner__on_item_selected(polygon_: Polygon2D):
+	polygon_.position = get_global_mouse_position()
+	polygons.add_child(polygon_.duplicate())
 	updatePolygonBuffers()
 	pass # Replace with function body.

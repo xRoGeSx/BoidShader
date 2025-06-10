@@ -22,5 +22,4 @@ void main() {
 
     binIndexTackLookup.data[my_index] = 0;
     binIndexTackLookup.data[my_index] = binIndexLookup.data[my_index - 1];
-
 }

@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://tbuv8bapobpg"]
 
-[ext_resource type="Script" path="res://src/ShapeSpawner/Shape.gd" id="1_hpwh5"]
+[ext_resource type="Script" uid="uid://cs0wepayekq74" path="res://src/ShapeSpawner/Shape.gd" id="1_hpwh5"]
 
 [node name="Shape" type="Polygon2D"]
 script = ExtResource("1_hpwh5")

@@ -83,6 +83,9 @@ void getNeighbouringBins(int binIndex, inout int neighbours[9]) {
 }
 
 void processBoidCollision(int my_index, inout vec2 result[4]) {
+    int watching_index = 0;
+    float IMAGE_SIZE = parameters.data[1];
+    ivec2 pixel_pos = ivec2(int(mod(my_index, IMAGE_SIZE)), int(my_index / IMAGE_SIZE));
 
     float width = parameters.data[9];
 
@@ -136,11 +139,6 @@ void processBoidCollision(int my_index, inout vec2 result[4]) {
                     separation += position - otherPosition;
                 }
             }
-                // if(watching_index == my_index) {
-                //     ivec2 pixel_pos = ivec2(int(mod(i, IMAGE_SIZE)), int(i / IMAGE_SIZE));
-                //     vec4 previous_pixel = imageLoad(boid_texture, pixel_pos);
-                //     imageStore(boid_texture, pixel_pos, vec4(previous_pixel.r, previous_pixel.g, previous_pixel.b, detection));
-                // }
 
         }
     }
@@ -225,15 +223,15 @@ void main() {
     uint my_index = gl_GlobalInvocationID.x;
     int watching_index = 0;
 
+    float IMAGE_SIZE = parameters.data[1];
+    ivec2 pixel_pos = ivec2(int(mod(my_index, IMAGE_SIZE)), int(my_index / IMAGE_SIZE));
+
     float LIST_SIZE = parameters.data[0];
 
     if(positions.data[my_index].x == -1)
         return;
     if(my_index > LIST_SIZE)
         return;
-
-    float IMAGE_SIZE = parameters.data[1];
-    ivec2 pixel_pos = ivec2(int(mod(my_index, IMAGE_SIZE)), int(my_index / IMAGE_SIZE));
 
     float min_vel = parameters.data[4];
     float max_vel = parameters.data[5];
@@ -274,6 +272,8 @@ void main() {
 
     int friends = int(boidCollisionResult[3].x);
     int avoids = int(boidCollisionResult[3].y);
+
+    boidHeatmap.data[my_index] = friends;
 
     if(friends > 0) {
         velocity += normalize(alignment / friends) * alignment_factor;

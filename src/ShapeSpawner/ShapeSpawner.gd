@@ -26,17 +26,17 @@ func _ready():
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta):
 	var listPosition = get_local_mouse_position() - List.position;
-	if(recordInteraction):
-		currentItemSelection = List.get_item_at_position(listPosition) ;
+	if (recordInteraction):
+		currentItemSelection = List.get_item_at_position(listPosition);
 
-	if(Input.is_action_just_pressed(COTNEXT_MENU_ACTION)):
+	if (Input.is_action_just_pressed(COTNEXT_MENU_ACTION)):
 		currentItemSelection = null;
 		List.position = get_global_mouse_position()
 		List.show()
 		
-	if(Input.is_action_just_released(COTNEXT_MENU_ACTION)):
+	if (Input.is_action_just_released(COTNEXT_MENU_ACTION)):
 		List.hide()
-		if(!recordInteraction): return;
+		if (!recordInteraction): return ;
 		
 	
 	pass
@@ -49,14 +49,13 @@ func _on_list_item_selected(index):
 	pass # Replace with function body.
 
 
-
 func _on_list_mouse_entered():
 	recordInteraction = true;
 	pass # Replace with function body.
 
 
 func _on_list_mouse_exited():
-	if(Input.is_action_just_released(COTNEXT_MENU_ACTION)):
+	if (Input.is_action_just_released(COTNEXT_MENU_ACTION)):
 		_on_item_selected.emit(polygons[currentItemSelection])
 	recordInteraction = false;
 	currentItemSelection = null;

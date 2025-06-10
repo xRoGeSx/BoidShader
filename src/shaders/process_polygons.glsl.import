@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://bemniqo6j02pc"
+path="res://.godot/imported/process_polygons.glsl-dfa4808d5beab68156a2f09cb793a504.res"
+
+[deps]
+
+source_file="res://src/shaders/process_polygons.glsl"
+dest_files=["res://.godot/imported/process_polygons.glsl-dfa4808d5beab68156a2f09cb793a504.res"]
+
+[params]
+

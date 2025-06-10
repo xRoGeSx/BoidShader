@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://dnufqiddf0ej4"
+path="res://.godot/imported/generate_bin_lookup.glsl-e21b6f8cc96c7c4aa4b1fb037542d284.res"
+
+[deps]
+
+source_file="res://src/shaders/generate_bin_lookup.glsl"
+dest_files=["res://.godot/imported/generate_bin_lookup.glsl-e21b6f8cc96c7c4aa4b1fb037542d284.res"]
+
+[params]
+

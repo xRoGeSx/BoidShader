@@ -1,6 +1,6 @@
 [gd_scene load_steps=7 format=3 uid="uid://cqvvye6esq3a0"]
 
-[ext_resource type="Shader" path="res://BoidParticle/BoidParticle.gdshader" id="1_m0k14"]
+[ext_resource type="Shader" uid="uid://bt84cqllyyaw6" path="res://BoidParticle/BoidParticle.gdshader" id="1_m0k14"]
 [ext_resource type="Texture2D" uid="uid://bkapfan2k45qe" path="res://src/Box/boid.png" id="1_u8leb"]
 
 [sub_resource type="Texture2DRD" id="Texture2DRD_splnu"]
@@ -16,11 +16,11 @@ noise = SubResource("FastNoiseLite_1mil8")
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_brqp2"]
 shader = ExtResource("1_m0k14")
-shader_parameter/scroll = Vector2(0.05, 0.05)
 shader_parameter/boid_data = SubResource("Texture2DRD_splnu")
 shader_parameter/noise = SubResource("NoiseTexture2D_t6g6m")
+shader_parameter/scroll = Vector2(0.05, 0.05)
 
 [node name="BoidParticle" type="GPUParticles2D"]
 position = Vector2(1, 2)
-process_material = SubResource("ShaderMaterial_brqp2")
 texture = ExtResource("1_u8leb")
+process_material = SubResource("ShaderMaterial_brqp2")

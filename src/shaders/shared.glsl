@@ -53,11 +53,14 @@ int data[];
 }
 binBoidLookups;
 
+layout(set = 0, binding = 11, std430) restrict buffer BoidHeatmap {
+int data[];
+}
+boidHeatmap;
 layout(set = 1, binding = 0, std430) restrict buffer PolygonVerticies {
 vec2 data[];
 }
 polygonVerticies;
-
 layout(set = 1, binding = 1, std430) restrict buffer PolygonVerticiesLookup {
 int data[];
 }
