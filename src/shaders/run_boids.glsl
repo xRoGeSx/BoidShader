@@ -6,52 +6,9 @@
 
 layout(local_size_x = 1024, local_size_y = 1, local_size_z = 1) in;
 
-int getBinIndex2(vec2 position) {
-    float width = parameters.data[9];
-
-    int bin_size = binParameters.size;
-    int horizontal_bin_amount = int(ceil(width / bin_size));
-    int x = int(floor(position.x / bin_size));
-    int y = int(floor(position.y / bin_size));
-    int my_bin = x + y * horizontal_bin_amount;
-
-    return my_bin;
-}
-
-void getNeighbouringBins2(int binIndex, inout int neighbours[9]) {
-    float width = parameters.data[9];
-    int bin_amount = int(binParameters.amount);
-    int bin_size = binParameters.size;
-    int horizontal_bin_amount = int(ceil(width / bin_size));
-    bool isLeftEdge = binIndex % horizontal_bin_amount == 0;
-    bool isRightEdge = binIndex == horizontal_bin_amount;
-    bool isTopEdge = bin_size < bin_amount;
-    bool isBottomEdge = bin_amount - binIndex < horizontal_bin_amount;
-
-    neighbours[0] = binIndex;
-    if(!isLeftEdge) {
-        neighbours[1] = binIndex + 1;
-        neighbours[2] = binIndex - 1;
-    }
-
-    // int iteration = 0;
-    // for(int x = -1; x <= 1; x++) {
-    //     for(int y = -1; y <= 1; y++) {
-    //         iteration++;
-    //         int neighbour_bin_index = binIndex + x + y * horizontal_bin_amount;
-    //         if(neighbour_bin_index < 0 || neighbour_bin_index > bin_amount) {
-    //             neighbours[iteration] = -1;
-    //             continue;
-    //         }
-    //         neighbours[iteration] = neighbour_bin_index;
-    //     }
-    // }
-}
-
-void processBoidCollision(int my_index, inout vec2 result[4]) {
+void processBoidCollision(int my_index, inout vec2 result[4], inout int detection_type) {
     int watching_index = 0;
     float IMAGE_SIZE = parameters.data[1];
-    ivec2 pixel_pos = ivec2(int(mod(my_index, IMAGE_SIZE)), int(my_index / IMAGE_SIZE));
 
     float width = parameters.data[9];
 
@@ -68,10 +25,10 @@ void processBoidCollision(int my_index, inout vec2 result[4]) {
 
     vec2 position = positions.data[my_index];
 
-    int my_bin = getBinIndex2(position);
+    int my_bin = getBinIndex(position);
 
     int[9] neighbourBins = int[](-1, -1, -1, -1, -1, -1, -1, -1, -1);
-    getNeighbouringBins2(my_bin, neighbourBins);
+    getNeighbouringBins(my_bin, neighbourBins);
 
     for(int neighbour_bin_index_lookup = 0; neighbour_bin_index_lookup < neighbourBins.length(); neighbour_bin_index_lookup++) {
 
@@ -90,10 +47,11 @@ void processBoidCollision(int my_index, inout vec2 result[4]) {
                 continue;
 
             vec2 otherPosition = positions.data[i];
+            if(otherPosition.x == -1)
+                continue;
             vec2 otherVelocity = velocities.data[i];
 
             float dist = distance(position, otherPosition);
-
             if(dist < friend_radius) {
                 detection = 1;
 
@@ -108,6 +66,7 @@ void processBoidCollision(int my_index, inout vec2 result[4]) {
 
         }
     }
+
     result[0] = cohesion;
     result[1] = separation;
     result[2] = alignment;
@@ -185,7 +144,6 @@ vec4 processPolygonCollision(int polygon_index, int boid_index, inout int detect
 }
 
 void main() {
-
     uint my_index = gl_GlobalInvocationID.x;
     int watching_index = 0;
 
@@ -230,7 +188,7 @@ void main() {
         separation_factor *= polygonCollisionResult.z;
     }
 
-    processBoidCollision(int(my_index), boidCollisionResult);
+    processBoidCollision(int(my_index), boidCollisionResult, detection_type);
 
     vec2 cohesion = boidCollisionResult[0];
     vec2 separation = boidCollisionResult[1];

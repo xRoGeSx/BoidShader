@@ -1,11 +1,14 @@
 extends Node2D
 
 
-const LIST_SIZE = 50;
+const LIST_SIZE = 30000;
 const MAX_POLYGON_VERTICES = 200;
 
 var rd := RenderingServer.get_rendering_device()
 const MOUSE_ACTION = "MouseButtonLeft"
+
+
+var LOG_BINS = false;
 
 @onready var particle: GPUParticles2D = $BoidParticle
 
@@ -26,7 +29,7 @@ var pipeline_generate_bin := rd.compute_pipeline_create(generate_bin_shader)
 var generate_bin_sum_shader_file := load("res://src/shaders/generate_bin_sum.glsl")
 var generate_bin_sum_shader_spirv: RDShaderSPIRV = generate_bin_sum_shader_file.get_spirv()
 var generate_bin_sum_shader := rd.shader_create_from_spirv(generate_bin_sum_shader_spirv)
-var pipeline_generate_bin_sum := rd.compute_pipeline_create(generate_bin_sum_shader)
+var pipeline_generate_bin_sum := rd.compute_pipeline_create(generate_bin_sum_shader)	
 
 var generate_bin_lookup_shader_file := load("res://src/shaders/generate_bin_lookup.glsl")
 var generate_bin_lookup_shader_spirv: RDShaderSPIRV = generate_bin_lookup_shader_file.get_spirv()
@@ -480,17 +483,17 @@ func logArrayAsTable(array: Array[PackedInt32Array], name_: String):
 			
 
 func _physics_process(delta):
+	addValueToBuffer(target_buffer, get_global_mouse_position())
+	_run_compute_shader(pipeline_generate_bin_sum)
 	if (Input.is_key_pressed(KEY_Q)):
 		return ;
 	updateParamBuffer(param_buffer, delta)
 	updatePolygonBuffers()
 	
 	removeLastValueFromBuffer(target_buffer)
-	addValueToBuffer(target_buffer, get_global_mouse_position())
 
 	
 	_run_compute_shader(pipeline_generate_bin)
-	_run_compute_shader(pipeline_generate_bin_sum)
 	_run_compute_shader(pipeline_generate_bin_lookup)
 	_run_compute_shader(pipeline_generate_boid_lookup)
 	_run_compute_shader(pipeline_run_boids)
@@ -509,19 +512,21 @@ func _process(delta):
 		remove_child(polygon)
 		removeLastValueFromBuffer(polygon_vertex_lookup_buffer)
 	if (Input.is_action_pressed((MOUSE_ACTION))):
-		addBoid(get_viewport().get_mouse_position(), 1)
+		addBoid(get_viewport().get_mouse_position(), 10)
 	if (Input.is_key_pressed(KEY_Q)):
 		return ;
-	var b = rd.buffer_get_data(bin_buffer).to_int32_array()
-	var bss = rd.buffer_get_data(bin_sum_buffer).to_int32_array()
-	var ss = rd.buffer_get_data(bin_index_lookup_buffer).to_int32_array()
-	var bs = rd.buffer_get_data(bin_boid_index_lookup_buffer).to_int32_array()
-	
-	print("Bin sum \n", bss)
-	print("Bin \n", b)
-	print("Bin lookup\n", ss)
-	print("Bin boid lookup\n", bs)
-	print(ss)
+		
+		
+	if(RENDER_BIN):
+		var b = rd.buffer_get_data(bin_buffer).to_int32_array()
+		var bss = rd.buffer_get_data(bin_sum_buffer).to_int32_array()
+		var ss = rd.buffer_get_data(bin_index_lookup_buffer).to_int32_array()
+		var bs = rd.buffer_get_data(bin_boid_index_lookup_buffer).to_int32_array()
+		print("Bin sum \n", bss)
+		print("Bin \n", b)
+		print("Bin lookup\n", ss)
+		print("Bin boid lookup\n", bs)
+		print(ss)
 	# var heatmap = rd.buffer_get_data(boid_heatmap_buffer).to_int32_array();
 	# print(heatmap.slice(10000, 10002))
 	# $CanvasLayer/ColorRect.material.set_shader_parameter("boid_heatmap", heatmap)

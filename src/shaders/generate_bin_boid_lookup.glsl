@@ -10,6 +10,8 @@ void main() {
     float LIST_SIZE = parameters.data[0];
     if(my_index > LIST_SIZE)
         return;
+    if(positions.data[my_index].x == -1)
+        return;
 
     int my_bin = bin.data[my_index];
 

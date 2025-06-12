@@ -63,24 +63,18 @@ void getNeighbouringBins(int binIndex, inout int neighbours[9]) {
     bool isLeftEdge = binIndex % horizontal_bin_amount == 0;
     bool isRightEdge = binIndex == horizontal_bin_amount;
     bool isTopEdge = bin_size < bin_amount;
-    bool isBottomEdge = bin_amount - binIndex < horizontal_bin_amount;
-
-    // neighbours[0] = binIndex;
-    // if(!isLeftEdge) {
-    //     neighbours[1] = binIndex + 1;
-    //     neighbours[2] = binIndex - 1;
-    // }
+    bool isBottomEdge = (bin_amount - binIndex) < horizontal_bin_amount;
 
     int iteration = 0;
     for(int x = -1; x <= 1; x++) {
         for(int y = -1; y <= 1; y++) {
-            iteration++;
             int neighbour_bin_index = binIndex + x + y * horizontal_bin_amount;
             if(neighbour_bin_index < 0 || neighbour_bin_index > bin_amount) {
                 neighbours[iteration] = -1;
                 continue;
             }
             neighbours[iteration] = neighbour_bin_index;
+            iteration++;
         }
     }
 }

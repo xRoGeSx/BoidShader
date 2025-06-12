@@ -16,6 +16,7 @@ void vertex() {
 
 
 void fragment() {
+	
 	ivec2 pos_image_size = textureSize(heatmap, 0);
 	int x = int(map(SCREEN_UV.x, 0, 1, 0, float(pos_image_size.x)));
 	int y = int(map(SCREEN_UV.y, 0, 1, 0, float(pos_image_size.y)));
@@ -25,10 +26,10 @@ void fragment() {
 	vec4 heatmap_pixel = texelFetch(heatmap, texel_pos, 0);
 
 
-	float opacity = float(heatmap_pixel.x) / 15.0;
+	float opacity = float(heatmap_pixel.x) / 20.0;
 	//float debug = float(index) / 746496.0;
 
-	COLOR  = vec4(0, 0, 0, opacity);
+	COLOR  = vec4(opacity < 0.8 ? opacity : 1.0, 0, 0, opacity);
 	// Called for every pixel the material is visible on.
 }
 

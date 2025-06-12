@@ -11,11 +11,6 @@ void main() {
     float height = parameters.data[10];
     float friend_radius = parameters.data[2];
 
-    // uint my_index = gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * gl_WorkGroupSize.y;
-
-    // if(my_index > width * height)
-    //     return;
-
     float y = float(gl_GlobalInvocationID.y);
     float x = float(gl_GlobalInvocationID.x);
 
@@ -30,13 +25,15 @@ void main() {
         if(neighbour_bin_index == -1)
             continue;
 
-        int bin_lookup_start = binIndexTackLookup.data[neighbour_bin_index == 0 ? 0 : neighbour_bin_index - 1];
+        int bin_lookup_start = neighbour_bin_index == 0 ? 0 : binIndexTackLookup.data[neighbour_bin_index - 1];
         int bin_lookup_end = binIndexTackLookup.data[neighbour_bin_index];
 
         for(int lookup_index = bin_lookup_start; lookup_index < bin_lookup_end; lookup_index++) {
             int i = binBoidLookups.data[lookup_index];
 
             vec2 otherPosition = positions.data[i];
+            if(otherPosition.x == -1)
+                return;
 
             float dist = distance(position, otherPosition);
 
