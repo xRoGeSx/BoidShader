@@ -1,7 +1,7 @@
 extends Node2D
 
 
-const LIST_SIZE = 50000;
+const LIST_SIZE = 50;
 const MAX_POLYGON_VERTICES = 200;
 
 var rd := RenderingServer.get_rendering_device()
@@ -43,6 +43,12 @@ var process_polygons_shader_spirv: RDShaderSPIRV = process_polygons_shader_file.
 var process_polygons_shader := rd.shader_create_from_spirv(process_polygons_shader_spirv)
 var pipeline_process_polygons := rd.compute_pipeline_create(process_polygons_shader)
 
+
+var create_heatmap_shader_file := load("res://src/shaders/generate_boid_heatmap.glsl")
+var create_heatmap_shader_spirv: RDShaderSPIRV = create_heatmap_shader_file.get_spirv()
+var create_heatmap_shader := rd.shader_create_from_spirv(create_heatmap_shader_spirv)
+var pipeline_create_heatmap := rd.compute_pipeline_create(create_heatmap_shader)
+
 var position_buffer: RID
 var position_uniform: RDUniform
 
@@ -55,11 +61,18 @@ var param_uniform: RDUniform
 var target_buffer: RID
 var target_uniform: RDUniform
 
-var boid_data_buffer: RID
-var boid_data_uniform: RDUniform
 
-var boid_texture: ImageTexture
-var boid_texture_rd = Texture2DRD
+var boid_data: Image
+var boid_data_texture: ImageTexture
+var boid_data_texture_rd = Texture2DRD
+var boid_data_texture_buffer: RID
+var boid_data_texture_uniform: RDUniform
+
+var heatmap: Image
+var heatmap_texture: ImageTexture
+var heatmap_texture_rd = Texture2DRD
+var heatmap_texture_buffer: RID
+var heatmap_texture_uniform: RDUniform
 
 var bin_param_buffer: RID
 var bin_param_uniform: RDUniform
@@ -105,6 +118,7 @@ var initial_heatmap: Array[int] = []
 
 var shared_boid_uniform: RID
 var shared_polygon_uniform: RID
+var shared_heatmap_uniform: RID
 
 
 var width = 400
@@ -130,9 +144,7 @@ var bin_amount = bin_amount_horizontal * bin_amount_vertical
 
 
 var IMAGE_SIZE = int(ceil((sqrt(LIST_SIZE))));
-var boid_data: Image
-var boid_data_texture: ImageTexture
-var boid_data_texture_rd = Texture2DRD
+
 var shaderFloatRDL: float;
 
 func getVec2ArrayFromShader(buffer: RID) -> Array[Vector2]:
@@ -280,30 +292,30 @@ func replaceValueInBuffer(buffer_: RID, index: int, value: int):
 
 func setupComputeShader():
 	boid_data = Image.create(IMAGE_SIZE, IMAGE_SIZE, false, Image.FORMAT_RGBAH)
-	for w in IMAGE_SIZE:
-		for h in IMAGE_SIZE:
-			boid_data.set_pixel(w, h, Color(255, 255, 255))
+	heatmap = Image.create(get_viewport_rect().size.x, get_viewport_rect().size.y, false, Image.FORMAT_RGBAH)
 			
 	$BoidParticle.amount = LIST_SIZE
 
-	var fmt := RDTextureFormat.new()
-	fmt.width = IMAGE_SIZE
-	fmt.height = IMAGE_SIZE
-	fmt.format = RenderingDevice.DATA_FORMAT_R16G16B16A16_SFLOAT
-	fmt.usage_bits = RenderingDevice.TEXTURE_USAGE_SAMPLING_BIT | RenderingDevice.TEXTURE_USAGE_STORAGE_BIT | RenderingDevice.TEXTURE_USAGE_CAN_COPY_FROM_BIT
+	var format_boid_data := RDTextureFormat.new()
+	format_boid_data.width = IMAGE_SIZE
+	format_boid_data.height = IMAGE_SIZE
+	format_boid_data.format = RenderingDevice.DATA_FORMAT_R16G16B16A16_SFLOAT
+	format_boid_data.usage_bits = RenderingDevice.TEXTURE_USAGE_SAMPLING_BIT | RenderingDevice.TEXTURE_USAGE_STORAGE_BIT | RenderingDevice.TEXTURE_USAGE_CAN_COPY_FROM_BIT
 	
-	var view := RDTextureView.new()
+
+	var format_heatmap := RDTextureFormat.new()
+	format_heatmap.width = get_viewport_rect().size.x
+	format_heatmap.height = get_viewport_rect().size.y
+	format_heatmap.format = RenderingDevice.DATA_FORMAT_R16G16B16A16_SFLOAT
+	format_heatmap.usage_bits = RenderingDevice.TEXTURE_USAGE_SAMPLING_BIT | RenderingDevice.TEXTURE_USAGE_STORAGE_BIT | RenderingDevice.TEXTURE_USAGE_CAN_COPY_FROM_BIT
 
 	var params = generate_parameter_buffer(1)
 
-	var imagemock = []
-	imagemock.resize(LIST_SIZE)
-	imagemock.fill(255)
+	boid_data_texture_buffer = rd.texture_create(format_boid_data, RDTextureView.new(), boid_data.get_data())
+	boid_data_texture_rd.texture_rd_rid = boid_data_texture_buffer
 
-	boid_data_buffer = rd.texture_create(fmt, view, boid_data.get_data())
-	
-	boid_data_texture_rd.texture_rd_rid = boid_data_buffer
-	
+	heatmap_texture_buffer = rd.texture_create(format_heatmap, RDTextureView.new(), heatmap.get_data())
+	heatmap_texture_rd.texture_rd_rid = heatmap_texture_buffer
 	
 	position_buffer = vec2ToBuffer(inital_position)
 	velocity_buffer = vec2ToBuffer(initial_velocity)
@@ -326,37 +338,43 @@ func setupComputeShader():
 	velocity_uniform = createUniformFromBuffer(velocity_buffer, 1)
 	param_uniform = createUniformFromBuffer(param_buffer, 2)
 	target_uniform = createUniformFromBuffer(target_buffer, 3)
-	boid_data_uniform = createUniformFromBuffer(boid_data_buffer, 4, RenderingDevice.UNIFORM_TYPE_IMAGE)
+	boid_data_texture_uniform = createUniformFromBuffer(boid_data_texture_buffer, 4, RenderingDevice.UNIFORM_TYPE_IMAGE)
 	bin_param_uniform = createUniformFromBuffer(bin_param_buffer, 5)
 	bin_uniform = createUniformFromBuffer(bin_buffer, 6)
 	bin_sum_uniform = createUniformFromBuffer(bin_sum_buffer, 7)
 	bin_index_lookup_uniform = createUniformFromBuffer(bin_index_lookup_buffer, 8)
 	bin_index_lookup_track_uniform = createUniformFromBuffer(bin_index_lookup_track_buffer, 9)
 	bin_boid_index_lookup_uniform = createUniformFromBuffer(bin_boid_index_lookup_buffer, 10)
-	boid_heatmap_uniform = createUniformFromBuffer(boid_heatmap_buffer, 11)
 
 	polygon_vertex_uniform = createUniformFromBuffer(polygon_vertex_buffer, 0)
 	polygon_vertex_lookup_uniform = createUniformFromBuffer(polygon_vertex_lookup_buffer, 1)
+	
+	boid_heatmap_uniform = createUniformFromBuffer(boid_heatmap_buffer, 0)
+	heatmap_texture_uniform = createUniformFromBuffer(heatmap_texture_buffer, 1, RenderingDevice.UNIFORM_TYPE_IMAGE)
 
 	shared_boid_uniform = rd.uniform_set_create([
 		position_uniform,
 		velocity_uniform,
 		param_uniform,
 		target_uniform,
-		boid_data_uniform,
+		boid_data_texture_uniform,
 		bin_param_uniform,
 		bin_uniform,
 		bin_sum_uniform,
 		bin_index_lookup_uniform,
 		bin_index_lookup_track_uniform,
 		bin_boid_index_lookup_uniform,
-		boid_heatmap_uniform
 	], run_boids_shader, 0)
 
 	shared_polygon_uniform = rd.uniform_set_create([
 		polygon_vertex_uniform,
 		polygon_vertex_lookup_uniform
 	], process_polygons_shader, 1)
+
+	shared_heatmap_uniform = rd.uniform_set_create([
+		boid_heatmap_uniform,
+		heatmap_texture_uniform
+	], create_heatmap_shader, 2)
 	
 	pass
 
@@ -462,11 +480,13 @@ func logArrayAsTable(array: Array[PackedInt32Array], name_: String):
 			
 
 func _physics_process(delta):
+	if (Input.is_key_pressed(KEY_Q)):
+		return ;
 	updateParamBuffer(param_buffer, delta)
 	updatePolygonBuffers()
 	
 	removeLastValueFromBuffer(target_buffer)
-	#addValueToBuffer(target_buffer, get_global_mouse_position())
+	addValueToBuffer(target_buffer, get_global_mouse_position())
 
 	
 	_run_compute_shader(pipeline_generate_bin)
@@ -474,6 +494,7 @@ func _physics_process(delta):
 	_run_compute_shader(pipeline_generate_bin_lookup)
 	_run_compute_shader(pipeline_generate_boid_lookup)
 	_run_compute_shader(pipeline_run_boids)
+	_run_compute_shader_screen(pipeline_create_heatmap)
 
 	_run_compute_shader(pipeline_process_polygons)
 
@@ -488,13 +509,22 @@ func _process(delta):
 		remove_child(polygon)
 		removeLastValueFromBuffer(polygon_vertex_lookup_buffer)
 	if (Input.is_action_pressed((MOUSE_ACTION))):
-		addBoid(get_viewport().get_mouse_position(), 20)
+		addBoid(get_viewport().get_mouse_position(), 1)
 	if (Input.is_key_pressed(KEY_Q)):
 		return ;
+	var b = rd.buffer_get_data(bin_buffer).to_int32_array()
+	var bss = rd.buffer_get_data(bin_sum_buffer).to_int32_array()
+	var ss = rd.buffer_get_data(bin_index_lookup_buffer).to_int32_array()
+	var bs = rd.buffer_get_data(bin_boid_index_lookup_buffer).to_int32_array()
 	
-	
-	var heatmap = rd.buffer_get_data(boid_heatmap_buffer).to_int32_array();
-	$CanvasLayer/ColorRect.material.set_shader_parameter("boid_heatmap", heatmap)
+	print("Bin sum \n", bss)
+	print("Bin \n", b)
+	print("Bin lookup\n", ss)
+	print("Bin boid lookup\n", bs)
+	print(ss)
+	# var heatmap = rd.buffer_get_data(boid_heatmap_buffer).to_int32_array();
+	# print(heatmap.slice(10000, 10002))
+	# $CanvasLayer/ColorRect.material.set_shader_parameter("boid_heatmap", heatmap)
 
 	#var polyv = getVec2ArrayFromShader(polygon_vertex_buffer);
 	#print(polyv)
@@ -506,9 +536,18 @@ func _run_compute_shader(pipeline):
 	rd.compute_list_bind_compute_pipeline(compute_list, pipeline)
 	rd.compute_list_bind_uniform_set(compute_list, shared_boid_uniform, 0)
 	rd.compute_list_bind_uniform_set(compute_list, shared_polygon_uniform, 1)
+	rd.compute_list_bind_uniform_set(compute_list, shared_heatmap_uniform, 2)
 	rd.compute_list_dispatch(compute_list, round(LIST_SIZE / 1024 + 1), 1, 1)
 	rd.compute_list_end()
 	
+func _run_compute_shader_screen(pipeline):
+	var compute_list := rd.compute_list_begin()
+	rd.compute_list_bind_compute_pipeline(compute_list, pipeline)
+	rd.compute_list_bind_uniform_set(compute_list, shared_boid_uniform, 0)
+	rd.compute_list_bind_uniform_set(compute_list, shared_polygon_uniform, 1)
+	rd.compute_list_bind_uniform_set(compute_list, shared_heatmap_uniform, 2)
+	rd.compute_list_dispatch(compute_list, get_viewport_rect().size.x / 32, get_viewport_rect().size.y / 32, 1)
+	rd.compute_list_end()
 
 func addBoid(position_: Vector2, amount: int = 1):
 	if (amount == 1):
@@ -564,7 +603,7 @@ func _ready():
 	binIndexBoidLookup.fill(0)
 	initial_lookup.resize(MAX_POLYGON_VERTICES)
 	initial_verticies.resize(MAX_POLYGON_VERTICES)
-	initial_heatmap.resize(LIST_SIZE)
+	initial_heatmap.resize(get_viewport_rect().size.x * get_viewport_rect().size.y)
 	initial_heatmap.fill(0)
 	
 	bin_amount_horizontal = ceil(get_viewport_rect().size.x / bin_size)
@@ -581,6 +620,7 @@ func _ready():
 		
 	
 	boid_data_texture_rd = $BoidParticle.process_material.get_shader_parameter("boid_data")
+	heatmap_texture_rd = $CanvasLayer/ColorRect.material.get_shader_parameter("heatmap")
 	
 	RenderingServer.call_on_render_thread(setupComputeShader)
 

@@ -53,10 +53,6 @@ int data[];
 }
 binBoidLookups;
 
-layout(set = 0, binding = 11, std430) restrict buffer BoidHeatmap {
-int data[];
-}
-boidHeatmap;
 layout(set = 1, binding = 0, std430) restrict buffer PolygonVerticies {
 vec2 data[];
 }
@@ -65,3 +61,10 @@ layout(set = 1, binding = 1, std430) restrict buffer PolygonVerticiesLookup {
 int data[];
 }
 polygonVerticiesLookup;
+
+layout(set = 2, binding = 0, std430) restrict buffer BoidHeatmap {
+int data[];
+}
+boidHeatmap;
+
+layout(set = 2, binding = 1, rgba16f) uniform image2D heatmap_texture;
