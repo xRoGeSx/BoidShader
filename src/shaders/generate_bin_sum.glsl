@@ -15,16 +15,14 @@ void main() {
     float IMAGE_SIZE = parameters.data[1];
     ivec2 pixel_pos = ivec2(int(mod(my_index, IMAGE_SIZE)), int(my_index / IMAGE_SIZE));
 
+    binSum.data[my_index] = 0;
     if(positions.data[my_index].x == -1)
         return;
 
-    if(my_index < bin_amount) {
-        binSum.data[my_index] = 0;
-    }
-    barrier();
-
     if(my_index >= boid_amount)
         return;
+
+    barrier();
 
     int my_bin = bin.data[my_index];
     atomicAdd(binSum.data[my_bin], 1);

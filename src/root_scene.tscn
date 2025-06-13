@@ -14,9 +14,12 @@ shader_parameter/heatmap = SubResource("Texture2DRD_5xvhf")
 [node name="RootScene" type="Node2D"]
 rotation = -0.000418067
 script = ExtResource("1_xc3cs")
-max_vel = 107.468
+friend_radius = 12.272
+avoid_radius = 8.896
+max_vel = 126.624
 alignment_factor = 23.636
-cohesion_factor = 3.597
+cohesion_factor = 6.844
+separation_factor = 10.26
 PREFILL = false
 RENDER_BIN = false
 bin_size = 16
@@ -28,6 +31,8 @@ material = SubResource("ShaderMaterial_5xvhf")
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_right = -1152.0
+offset_bottom = -648.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
@@ -40,4 +45,5 @@ y_sort_enabled = true
 
 [node name="Polygons" type="Node2D" parent="."]
 
+[connection signal="item_rect_changed" from="." to="." method="_on_item_rect_changed"]
 [connection signal="_on_item_selected" from="ShapeSpawner" to="." method="_on_shape_spawner__on_item_selected"]

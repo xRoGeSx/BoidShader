@@ -8,10 +8,15 @@ script = ExtResource("1_w6c3h")
 
 [node name="Polygons" type="Node2D" parent="."]
 
+[node name="Teardrop" parent="Polygons" instance=ExtResource("2_puodd")]
+position = Vector2(754, 107)
+color = Color(1, 1, 1, 0.0784314)
+polygon = PackedVector2Array(40, 61, 31, 70, 18, 75, 5, 76, -6, 74, -17, 68, -25, 59, -30, 50, -33, 40, -34, 30, -32, 18, -28, 9, -21, 1, -14, -5, -3, -13, 7, -18, 21, -25, 34, -30, 46, -33, 61, -36, 53.1285, -23.2482, 48, -14, 46, -2, 47, 7, 48, 15, 50, 25, 50, 37, 48, 47)
+
 [node name="Heart" parent="Polygons" instance=ExtResource("2_puodd")]
 position = Vector2(147, 123)
 color = Color(1, 1, 1, 0.0784314)
-polygon = PackedVector2Array(-15, -60, 13, -70, 37, -59, 56, -32, 75, -59, 97, -67, 124.766, -58.3761, 137.843, -35.6125, 142.687, -8.49004, 133, 19, 104, 53, 75, 78, 44, 100, 12, 72, -7, 48, -28, 23, -37, -4, -31, -32)
+polygon = PackedVector2Array(-15, -60, 13, -70, 37, -59, 56, -32, 75, -59, 97, -67, 124.766, -58.3761, 132, -49, 137.843, -35.6125, 141, -23, 142.687, -8.49004, 139, 6, 133, 19, 104, 53, 75, 78, 44, 100, 12, 72, -7, 48, -28, 23, -34, 9, -37, -4, -36, -19, -31, -32, -25, -49)
 
 [node name="Diamond" parent="Polygons" instance=ExtResource("2_puodd")]
 position = Vector2(356, 131)

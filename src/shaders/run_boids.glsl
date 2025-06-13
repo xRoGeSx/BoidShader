@@ -131,7 +131,7 @@ vec4 processPolygonCollision(int polygon_index, int boid_index, inout int detect
     /* TODO: this need */
     if(inside) {
         separation_factor_mod *= 5;
-        velocity += normalize(polygonCenter - position) * -10.0;
+        // velocity += normalize(polygonCenter - position) * -10.0;
         if(closestEdge < EDGE_AVOIDANCE_RANGE) {
             detection_type = int(distance(polygonCenter, position));
             velocity += normalize(closestEdgeDirection) * -150.0;

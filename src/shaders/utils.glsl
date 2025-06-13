@@ -78,3 +78,7 @@ void getNeighbouringBins(int binIndex, inout int neighbours[9]) {
         }
     }
 }
+
+float map(float value, float inMin, float inMax, float outMin, float outMax) {
+    return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
+}

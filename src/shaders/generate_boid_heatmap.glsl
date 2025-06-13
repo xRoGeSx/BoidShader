@@ -19,7 +19,7 @@ void main() {
     int[9] neighbourBins = int[](-1, -1, -1, -1, -1, -1, -1, -1, -1);
     getNeighbouringBins(my_bin, neighbourBins);
 
-    int friends = 0;
+    float friends = 0;
     for(int neighbour_bin_index_lookup = 0; neighbour_bin_index_lookup < neighbourBins.length(); neighbour_bin_index_lookup++) {
         int neighbour_bin_index = neighbourBins[neighbour_bin_index_lookup];
         if(neighbour_bin_index == -1)
@@ -36,13 +36,12 @@ void main() {
                 return;
 
             float dist = distance(position, otherPosition);
-
             if(dist < friend_radius) {
-                friends++;
+                friends += map(dist, 0.0, friend_radius - 1, 1.0, 0.0);
             }
 
         }
     }
-    imageStore(heatmap_texture, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(float(friends), 0.0, 0.0, 0.0));
+    imageStore(heatmap_texture, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y), vec4(friends, 0.0, 0.0, 0.0));
 
 }
