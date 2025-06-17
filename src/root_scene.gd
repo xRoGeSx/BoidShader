@@ -1,74 +1,17 @@
 extends Node2D
 
-
-const LIST_SIZE = 50000;
-const MAX_POLYGON_VERTICES = 200;
-
 var rd := RenderingServer.get_rendering_device()
-const MOUSE_ACTION = "MouseButtonLeft"
-
 
 var BoidRunner: BoidRunner = preload("res://src/BoidRunner.gd").new()
 var BufferUtils: BufferUtils = preload("res://src/utils/buffer/BufferUtils.gd").new()
+var LogUtils: LogUtils = preload("res://src/utils/log/LogUtils.gd").new()
 
-
-var LOG_BINS = false;
-
-@onready var particle: GPUParticles2D = $BoidParticle
-
-@onready var polygon = $Polygon2D
-@onready var polygons = $Polygons
-
-
-var target_buffer: RID
-var target_uniform: RDUniform
-
-
-var boid_data_texture_rd = Texture2DRD
-
-var heatmap: Image
-var heatmap_texture: ImageTexture
-var heatmap_texture_rd = Texture2DRD
-var heatmap_texture_buffer: RID
-var heatmap_texture_uniform: RDUniform
-
-var bin_param_buffer: RID
-var bin_param_uniform: RDUniform
-
-var bin_buffer: RID
-var bin_uniform: RDUniform
-
-var boid_heatmap_buffer: RID
-var boid_heatmap_uniform: RDUniform
-
-var polygon_vertex_buffer: RID
-var polygon_vertex_uniform: RDUniform
-
-var polygon_vertex_lookup_buffer: RID
-var polygon_vertex_lookup_uniform: RDUniform;
-
-
-var inital_position: Array[Vector2] = []
-var initial_velocity: Array[Vector2] = []
-var initial_verticies: Array[Vector2] = []
-var initial_lookup: Array[int] = []
-
-var bin: Array[int] = []
-var binSum: Array[int] = []
-var binLookup: Array[int] = []
-var binLookupTrack: Array[int] = []
-var binIndexBoidLookup: Array[int] = []
-
-var initial_heatmap: Array[int] = []
-
-
-var shared_boid_uniform: RID
-var shared_polygon_uniform: RID
-var shared_heatmap_uniform: RID
-
-
-var width = 400
-var height = 200
+@export_category("Simulation settings")
+@export var LIST_SIZE = 50000;
+@export var MAX_POLYGON_VERTICES = 200;
+@export var PREFILL = true;
+@export var RENDER_BIN = true;
+@export var bin_size = 16;
 
 @export_category("Boid Settings")
 @export_range(0, 50) var friend_radius = 10.0
@@ -78,21 +21,33 @@ var height = 200
 @export_range(0, 100) var alignment_factor = 10.0
 @export_range(0, 100) var cohesion_factor = 1.0
 @export_range(0, 100) var separation_factor = 20.0
-@export var PREFILL = true;
-@export var RENDER_BIN = true;
 
-@export var bin_size = 256;
+const MOUSE_ACTION = "MouseButtonLeft"
+
+
+
+@onready var particle: GPUParticles2D = $BoidParticle
+@onready var polygon = $Polygon2D
+@onready var polygons = $Polygons
+
+var boid_data_texture_rd = Texture2DRD
+var heatmap_texture_rd = Texture2DRD
+
+var shared_boid_uniform: RID
+var shared_polygon_uniform: RID
+var shared_heatmap_uniform: RID
+
+
+var width = 400
+var height = 200
+
+
+
 
 var bin_amount_horizontal = ceil(get_viewport_rect().size.x / bin_size)
 var bin_amount_vertical = ceil(get_viewport_rect().size.y / bin_size)
-
 var bin_amount = bin_amount_horizontal * bin_amount_vertical
-
-
 var IMAGE_SIZE = int(ceil((sqrt(LIST_SIZE))));
-
-var shaderFloatRDL: float;
-
 
 func generateParameters(delta):
 	return [
@@ -113,6 +68,15 @@ func generateParameters(delta):
 func updateParamBuffer(buffer_: RID, delta: float):
 	var updatedBuffer = BufferUtils.floatArrayToPackedBytes(generateParameters(delta))
 	return rd.buffer_update(buffer_, 0, updatedBuffer.size(), updatedBuffer)
+
+func updatePolygonBuffers():
+	var g = generate_polygon_buffers()
+	var verticies = BufferUtils.vec2ArrayToPackedBytes(g[0]);
+	var lookup = BufferUtils.intArrayToPackedBytes(g[1])
+	
+	rd.buffer_update(BoidRunner.polygon_vertex_buffer, 0, verticies.size(), verticies)
+	rd.buffer_update(BoidRunner.polygon_vertex_lookup_buffer, 0, lookup.size(), lookup)
+	
 	
 func generate_polygon_buffers():
 	var lookup: Array[int] = [];
@@ -130,58 +94,6 @@ func generate_polygon_buffers():
 	return [verticies, lookup]
 
 
-func updatePolygonBuffers():
-	var g = generate_polygon_buffers()
-	var verticies = BufferUtils.vec2ArrayToPackedBytes(g[0]);
-	var lookup = BufferUtils.intArrayToPackedBytes(g[1])
-	
-	rd.buffer_update(polygon_vertex_buffer, 0, verticies.size(), verticies)
-	rd.buffer_update(polygon_vertex_lookup_buffer, 0, lookup.size(), lookup)
-	
-
-func setupComputeShader():
-	heatmap = Image.create(DisplayServer.screen_get_size().x, DisplayServer.screen_get_size().y, false, Image.FORMAT_RGBAH)
-	$BoidParticle.amount = LIST_SIZE
-
-	
-	var format_heatmap := RDTextureFormat.new()
-	format_heatmap.width = DisplayServer.screen_get_size().x
-	format_heatmap.height = DisplayServer.screen_get_size().y
-	format_heatmap.format = RenderingDevice.DATA_FORMAT_R16G16B16A16_SFLOAT
-	format_heatmap.usage_bits = RenderingDevice.TEXTURE_USAGE_SAMPLING_BIT | RenderingDevice.TEXTURE_USAGE_STORAGE_BIT | RenderingDevice.TEXTURE_USAGE_CAN_COPY_FROM_BIT
-	
-	var params = generateParameters(1)
-
-
-	heatmap_texture_buffer = rd.texture_create(format_heatmap, RDTextureView.new(), heatmap.get_data())
-	heatmap_texture_rd.texture_rd_rid = heatmap_texture_buffer
-
-	polygon_vertex_buffer = BufferUtils.vec2ToBuffer(initial_verticies)
-	polygon_vertex_lookup_buffer = BufferUtils.intToBuffer(initial_lookup)
-
-	boid_heatmap_buffer = BufferUtils.intToBuffer(initial_heatmap)
-
-
-	polygon_vertex_uniform = BufferUtils.createUniformFromBuffer(polygon_vertex_buffer, 0)
-	polygon_vertex_lookup_uniform = BufferUtils.createUniformFromBuffer(polygon_vertex_lookup_buffer, 1)
-	
-	boid_heatmap_uniform = BufferUtils.createUniformFromBuffer(boid_heatmap_buffer, 0)
-	heatmap_texture_uniform = BufferUtils.createUniformFromBuffer(heatmap_texture_buffer, 1, RenderingDevice.UNIFORM_TYPE_IMAGE)
-#
-
-	shared_boid_uniform = BoidRunner.createBoidUniform(params)
-	boid_data_texture_rd.texture_rd_rid = BoidRunner.boid_data_texture_buffer
-
-	shared_polygon_uniform = rd.uniform_set_create([
-		polygon_vertex_uniform,
-		polygon_vertex_lookup_uniform
-	], BoidRunner.process_polygons_shader, 1)
-
-	shared_heatmap_uniform = rd.uniform_set_create([
-		boid_heatmap_uniform,
-		heatmap_texture_uniform
-	], BoidRunner.create_heatmap_shader, 2)
-	
 
 func _draw():
 	#drawPolygonIntersection()
@@ -198,15 +110,7 @@ func _draw():
 			draw_string(ThemeDB.fallback_font, Vector2(x * bin_size + 12, y * bin_size + 22), str(x + y * bin_amount_horizontal))
 
 
-func logArrayAsTable(array: Array[PackedInt32Array], name_: String):
-	if (name_): print(name_)
-	for i in bin_amount_vertical:
-		var row = [];
-		for j in bin_amount_horizontal:
-			var index = i * bin_amount_horizontal + j;
-			row.push_back(array[index])
-		print(row)
-			
+
 
 func _physics_process(delta):
 	BufferUtils.addValueToBuffer(BoidRunner.target_buffer, get_global_mouse_position())
@@ -248,7 +152,7 @@ func _process(delta):
 		var bss = rd.buffer_get_data(BoidRunner.bin_sum_buffer).to_int32_array()
 		var ss = rd.buffer_get_data(BoidRunner.bin_index_lookup_buffer).to_int32_array()
 		var bs = rd.buffer_get_data(BoidRunner.bin_boid_index_lookup_buffer).to_int32_array()
-		print("Bin amount", getBinAmount())
+		print("Bin amount", BoidRunner.getBinAmount())
 		print("Bin sum \n", bss)
 		print("Bin \n", b)
 		print("Bin lookup\n", ss)
@@ -282,60 +186,33 @@ func _run_compute_shader_screen(pipeline):
 	rd.compute_list_end()
 
 
-func getBinAmount():
-	var x = get_viewport_rect().size.x
-	var y = get_viewport_rect().size.y
-	return ceil(x / bin_size) * ceil(y / bin_size) * 6
+
 
 func _ready():
 	get_tree().get_root().size_changed.connect(onResize)
 	$CanvasLayer/ColorRect.set_size(DisplayServer.screen_get_size())
 	
 	BoidRunner.initalize(LIST_SIZE, MAX_POLYGON_VERTICES, PREFILL, get_viewport_rect(), bin_size)
-
-	inital_position.resize(LIST_SIZE)
-	initial_velocity.resize(LIST_SIZE)
-	if (PREFILL):
-		for i in LIST_SIZE:
-			inital_position[i] = Vector2(
-				randf() * get_viewport_rect().size.x,
-				randf() * get_viewport_rect().size.y
-			)
-			initial_velocity[i] = Vector2(randf(), randf())
-	else:
-		for i in LIST_SIZE:
-			inital_position[i] = Vector2(
-				-1, -1
-			)
-			initial_velocity[i] = Vector2(
-				-1, -1
-			)
-	
-	bin.resize(LIST_SIZE)
-	bin.fill(0)
-	binSum.resize(getBinAmount())
-	binSum.fill(0)
-	binLookup.resize(getBinAmount())
-	binLookup.fill(0)
-	binLookupTrack.resize(getBinAmount())
-	binLookupTrack.fill(0)
-	binIndexBoidLookup.resize(LIST_SIZE)
-	binIndexBoidLookup.fill(0)
-	initial_lookup.resize(MAX_POLYGON_VERTICES)
-	initial_verticies.resize(MAX_POLYGON_VERTICES)
-	initial_heatmap.resize(get_viewport_rect().size.x * get_viewport_rect().size.y)
-	initial_heatmap.fill(0)
-	
-	bin_amount_horizontal = ceil(get_viewport_rect().size.x / bin_size)
-	bin_amount_vertical = ceil(get_viewport_rect().size.y / bin_size)
-	
 	
 	boid_data_texture_rd = $BoidParticle.process_material.get_shader_parameter("boid_data")
 	heatmap_texture_rd = $CanvasLayer/ColorRect.material.get_shader_parameter("heatmap")
-	
 	RenderingServer.call_on_render_thread(setupComputeShader)
 	
+
+func setupComputeShader():
+	$BoidParticle.amount = LIST_SIZE
+	var params = generateParameters(1)
+
+	# Create uniforms 
+	shared_boid_uniform = BoidRunner.createBoidUniform(params)
+	shared_polygon_uniform = BoidRunner.createPolygonUniform()
+	shared_heatmap_uniform = BoidRunner.createHeatmapUniform()
 	
+	# Pass shared data to render shaders
+	boid_data_texture_rd.texture_rd_rid = BoidRunner.boid_data_texture_buffer
+	heatmap_texture_rd.texture_rd_rid = BoidRunner.heatmap_texture_buffer
+	
+
 func _on_shape_spawner__on_item_selected(polygon_: Polygon2D):
 	polygon_.position = get_global_mouse_position()
 	polygons.add_child(polygon_.duplicate())

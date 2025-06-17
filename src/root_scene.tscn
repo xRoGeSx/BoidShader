@@ -14,15 +14,13 @@ shader_parameter/heatmap = SubResource("Texture2DRD_5xvhf")
 [node name="RootScene" type="Node2D"]
 rotation = -0.000418067
 script = ExtResource("1_xc3cs")
+RENDER_BIN = false
 friend_radius = 12.272
 avoid_radius = 8.896
 max_vel = 126.624
 alignment_factor = 23.636
 cohesion_factor = 6.844
 separation_factor = 25.844
-PREFILL = false
-RENDER_BIN = false
-bin_size = 16
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
@@ -38,6 +36,7 @@ grow_vertical = 2
 mouse_filter = 2
 
 [node name="BoidParticle" parent="." instance=ExtResource("2_hgj33")]
+visible = false
 
 [node name="ShapeSpawner" parent="." instance=ExtResource("2_mkbhh")]
 z_index = 99

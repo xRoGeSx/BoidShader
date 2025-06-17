@@ -185,7 +185,7 @@ func createPolygonUniform():
 	], process_polygons_shader, 1)
 
 
-func createHeatmapUniform(width: int, height: int):
+func createHeatmapUniform():
 	heatmap = Image.create(width, height, false, Image.FORMAT_RGBAH)
 
 	var format_heatmap := RDTextureFormat.new()
@@ -196,7 +196,6 @@ func createHeatmapUniform(width: int, height: int):
 
 	heatmap_texture_buffer = rd.texture_create(format_heatmap, RDTextureView.new(), heatmap.get_data())
 
-	heatmap_texture_rd.texture_rd_rid = heatmap_texture_buffer
 
 	boid_heatmap_buffer = BufferUtils.intToBuffer(initial_heatmap)
 

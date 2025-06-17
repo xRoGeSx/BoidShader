@@ -26,7 +26,7 @@ void fragment() {
 	vec4 heatmap_pixel = texelFetch(heatmap, texel_pos, 0);
 
 
-	float opacity = float(heatmap_pixel.x) / 6.0;
+	float opacity = float(heatmap_pixel.x) / 10.0;
 	//float debug = float(index) / 746496.0;
 	
 	COLOR  = vec4(opacity, 0, 0, opacity);
