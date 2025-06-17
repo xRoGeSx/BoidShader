@@ -111,9 +111,15 @@ var shared_polygon_uniform: RID
 var shared_heatmap_uniform: RID
 
 
-func createBoidUniform(width: int, height: int, boid_amount: int, bin_size: int):
+var width = null;
+var height = null;
+var boid_amount = 0;
+var bin_size = 0;
+
+
+func createBoidUniform(params):
 	var IMAGE_SIZE = int(ceil((sqrt(boid_amount))));
-	
+	prints("IMAGE SIUZE", IMAGE_SIZE)
 	boid_data = Image.create(IMAGE_SIZE, IMAGE_SIZE, false, Image.FORMAT_RGBAH)
 	var format_boid_data := RDTextureFormat.new()
 	format_boid_data.width = IMAGE_SIZE
@@ -123,13 +129,13 @@ func createBoidUniform(width: int, height: int, boid_amount: int, bin_size: int)
 	
 
 	boid_data_texture_buffer = rd.texture_create(format_boid_data, RDTextureView.new(), boid_data.get_data())
-	boid_data_texture_rd.texture_rd_rid = boid_data_texture_buffer
-
 
 	position_buffer = BufferUtils.vec2ToBuffer(inital_position)
 	velocity_buffer = BufferUtils.vec2ToBuffer(initial_velocity)
 	target_buffer = BufferUtils.vec2ToBuffer(([Vector2(-1, -1)]))
-	bin_param_buffer = BufferUtils.intToBuffer([bin_size, getBinAmount(width, height, bin_size)])
+	param_buffer = BufferUtils.floatToBuffer(params)
+
+	bin_param_buffer = BufferUtils.intToBuffer([bin_size, getBinAmount()])
 	bin_buffer = BufferUtils.intToBuffer(bin)
 	bin_sum_buffer = BufferUtils.intToBuffer(binSum)
 	bin_index_lookup_buffer = BufferUtils.intToBuffer(binLookup)
@@ -202,9 +208,72 @@ func createHeatmapUniform(width: int, height: int):
 		boid_heatmap_uniform,
 		heatmap_texture_uniform
 	], create_heatmap_shader, 2)
+	
+	
+func initalize(LIST_SIZE: int, MAX_POLYGON_VERTICES: int, PREFILL: bool, viewport: Rect2, bin_size_: int):
+	width = viewport.size.x;
+	height = viewport.size.y;
+	boid_amount = LIST_SIZE;
+	bin_size = bin_size_;
+	var bin_amount = getBinAmount()
+	inital_position.resize(LIST_SIZE)
+	initial_velocity.resize(LIST_SIZE)
+	if (PREFILL):
+		for i in LIST_SIZE:
+			inital_position[i] = Vector2(
+				randf() * viewport.size.x,
+				randf() * viewport.size.y
+			)
+			initial_velocity[i] = Vector2(randf(), randf())
+	else:
+		for i in LIST_SIZE:
+			inital_position[i] = Vector2(
+				-1, -1
+			)
+			initial_velocity[i] = Vector2(
+				-1, -1
+			)
+	
+	bin.resize(LIST_SIZE)
+	bin.fill(0)
+	binSum.resize(bin_amount)
+	binSum.fill(0)
+	binLookup.resize(bin_amount)
+	binLookup.fill(0)
+	binLookupTrack.resize(bin_amount)
+	binLookupTrack.fill(0)
+	binIndexBoidLookup.resize(LIST_SIZE)
+	binIndexBoidLookup.fill(0)
+	
+	initial_lookup.resize(MAX_POLYGON_VERTICES)
+	initial_verticies.resize(MAX_POLYGON_VERTICES)
+	initial_heatmap.resize(viewport.size.x * viewport.size.y)
+	initial_heatmap.fill(0)
+	
+	var bin_amount_horizontal = ceil(viewport.size.x / bin_size)
+	var bin_amount_vertical = ceil(viewport.size.y / bin_size)
+	return [bin_amount_horizontal, bin_amount_vertical]
+	
+	
+func addBoid(position_: Vector2, amount: int = 1):
+	if (amount == 1):
+		BufferUtils.addValueToBuffer(velocity_buffer, Vector2(1, 1))
+		BufferUtils.addValueToBuffer(position_buffer, position_)
+		return ;
+	var positions = []
+	var velocities = []
+	positions.resize(amount)
+	velocities.resize(amount)
+	for i in amount:
+		var modify_position = Vector2(randf_range(0, 20), randf_range(0, 20))
+		var modify_velocity = Vector2(randf_range(0, 20), randf_range(0, 20))
+		positions[i] = position_ + modify_position
+		velocities[i] = modify_velocity;
+	BufferUtils.addValueToBuffer(velocity_buffer, velocities)
+	BufferUtils.addValueToBuffer(position_buffer, positions)
 
 
-func getBinAmount(width: int, height: int, bin_size: int):
+func getBinAmount():
 	var x = width
 	var y = height
 	return ceil(x / bin_size) * ceil(y / bin_size) * 6

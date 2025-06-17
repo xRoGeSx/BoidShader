@@ -12,6 +12,18 @@ frequency = 0.0741
 offset = Vector3(-173.91, 231.88, 0)
 
 [sub_resource type="NoiseTexture2D" id="NoiseTexture2D_t6g6m"]
+resource_local_to_scene = false
+resource_name = ""
+width = 512
+height = 512
+invert = false
+in_3d_space = false
+generate_mipmaps = true
+seamless = false
+seamless_blend_skirt = 0.1
+as_normal_map = false
+bump_strength = 8.0
+normalize = true
 noise = SubResource("FastNoiseLite_1mil8")
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_brqp2"]
